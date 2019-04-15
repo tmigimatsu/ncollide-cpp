@@ -1,0 +1,13 @@
+[package]
+name = "ncollide-cpp"
+version = "0.1.0"
+authors = ["Toki Migimatsu <toki.migimatsu@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+nalgebra = "0.17"
+ncollide3d = { path = "external/ncollide.git/build/ncollide3d" }
+ncollide2d = "0.18.4"
+
+[lib]
+crate-type = ["staticlib"]

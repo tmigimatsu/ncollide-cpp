@@ -1,0 +1,19 @@
+############################################################
+# CMake config for the spatial_dyn library
+#
+# Copyright 2018. All Rights Reserved.
+#
+# Created: September 16, 2018
+# Authors: Toki Migimatsu
+############################################################
+
+get_filename_component(NCOLLIDE_CPP_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
+include(CMakeFindDependencyMacro)
+
+list(APPEND CMAKE_MODULE_PATH ${NCOLLIDE_CPP_CMAKE_DIR})
+find_dependency(ctrl_utils 1.0.0 REQUIRED)
+list(REMOVE_AT CMAKE_MODULE_PATH -1)
+
+if(NOT TARGET ncollide_cpp::ncollide_cpp)
+    include("${NCOLLIDE_CPP_CMAKE_DIR}/ncollide_cppTargets.cmake")
+endif()
