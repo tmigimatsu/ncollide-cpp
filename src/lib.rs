@@ -7,15 +7,16 @@
  * Authors: Toki Migimatsu
  */
 
-mod bounding_volume3d;
-mod math3d;
-mod shape3d;
-mod query3d;
-mod rounded_cuboid3d;
+#[cfg(feature = "dim2")]
+extern crate ncollide2d as nc;
 
-mod math2d;
-mod shape2d;
-mod query2d;
+#[cfg(feature = "dim3")]
+extern crate ncollide3d as nc;
+
+mod bounding_volume;
+mod math;
+mod query;
+mod shape;
 
 #[cfg(test)]
 mod tests {

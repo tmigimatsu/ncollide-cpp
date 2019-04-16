@@ -81,7 +81,8 @@ add_test(NAME ncollide_test
 get_target_property(NCOLLIDE_DIR ncollide LOCATION)
 target_link_libraries(${NCOLLIDE_CPP_LIB}
     PUBLIC
-        ${NCOLLIDE_DIR}/libncollide_cpp.a
+        ${NCOLLIDE_DIR}/libncollide2d_cpp.a
+        ${NCOLLIDE_DIR}/libncollide3d_cpp.a
         ctrl_utils::ctrl_utils
 )
 add_dependencies(${NCOLLIDE_CPP_LIB} ncollide)

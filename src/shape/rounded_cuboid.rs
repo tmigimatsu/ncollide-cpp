@@ -1,8 +1,16 @@
-//! Support mapping based RoundedCuboid shape.
+/**
+ * rounded_cuboid.rs
+ *
+ * Copyright 2019. All Rights Reserved.
+ *
+ * Created: February 19, 2019
+ * Authors: Toki Migimatsu
+ */
 
 extern crate nalgebra as na;
-extern crate ncollide3d as nc;
 extern crate ncollide2d as nc2;
+
+use crate::nc;
 
 /// SupportMap description of a rounded cuboid shape.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -274,5 +282,29 @@ impl<N: na::Real> nc::shape::Shape<N> for RoundedCuboid<N> {
                                  _: Option<&[N]>,
                                  _: &na::Unit<nc::math::Vector<N>>) -> bool {
         false
+    }
+}
+
+#[cfg(feature = "dim2")]
+pub fn rounded_cuboid_new(x: f64, y: f64, radius: f64) -> *mut nc::shape::ShapeHandle<f64> {
+    let cuboid = RoundedCuboid::new(nc::math::Vector::new(x, y), radius);
+    let handle = nc::shape::ShapeHandle::new(cuboid);
+    Box::into_raw(Box::new(handle))
+}
+
+#[cfg(feature = "dim3")]
+pub fn rounded_cuboid_new(x: f64, y: f64, z: f64, radius: f64) -> *mut nc::shape::ShapeHandle<f64> {
+    let cuboid = RoundedCuboid::new(nc::math::Vector::new(x, y, z), radius);
+    let handle = nc::shape::ShapeHandle::new(cuboid);
+    Box::into_raw(Box::new(handle))
+}
+
+pub fn rounded_cuboid_half_extents(shape: Option<&nc::shape::ShapeHandle<f64>>) -> *const f64 {
+    use na::storage::Storage;
+
+    let maybe_cuboid = shape.unwrap().as_shape::<RoundedCuboid<f64>>();
+    match maybe_cuboid {
+        Some(ref cuboid) => { cuboid.half_extents().data.ptr() },
+        None => { std::ptr::null() }
     }
 }

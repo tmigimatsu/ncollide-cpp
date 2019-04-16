@@ -1,0 +1,19 @@
+[package]
+name = "ncollide3d-cpp"
+version = "0.1.0"
+authors = ["Toki Migimatsu <toki.migimatsu@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+nalgebra = "0.17"
+ncollide3d = "0.18.4"
+ncollide2d = "0.18.4"
+
+[features]
+default = ["dim3"]
+dim3 = []
+
+[lib]
+path = "../src/lib.rs"
+required-features = ["dim3"]
+crate-type = ["staticlib"]

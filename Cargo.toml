@@ -1,13 +1,6 @@
-[package]
-name = "ncollide-cpp"
-version = "0.1.0"
-authors = ["Toki Migimatsu <toki.migimatsu@gmail.com>"]
-edition = "2018"
+[workspace]
+members = ["ncollide2d-cpp", "ncollide3d-cpp"]
 
-[dependencies]
-nalgebra = "0.17"
+[patch.crates-io]
+ncollide2d = { path = "external/ncollide.git/build/ncollide2d" }
 ncollide3d = { path = "external/ncollide.git/build/ncollide3d" }
-ncollide2d = "0.18.4"
-
-[lib]
-crate-type = ["staticlib"]
