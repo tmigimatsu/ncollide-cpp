@@ -68,33 +68,9 @@ AABB aabb(const shape::Shape& g, const Eigen::Isometry3d& m = Eigen::Isometry3d:
 
 namespace query {
 
-struct ClosestPoints {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  enum class Status {
-    Intersecting,
-    WithinMargin,
-    Disjoint
-  };
-
-  Status status;
-  Eigen::Vector3d point1;
-  Eigen::Vector3d point2;
-};
-
-struct Contact {
-
-  Contact() = default;
-  Contact(Eigen::Ref<const Eigen::Vector3d> world1, Eigen::Ref<const Eigen::Vector3d> world2,
-          Eigen::Ref<const Eigen::Vector3d> normal, double depth)
-      : world1(world1), world2(world2), normal(normal), depth(depth) {}
-
-  Eigen::Vector3d world1;
-  Eigen::Vector3d world2;
-  Eigen::Vector3d normal;
-  double depth;
-
-};
+/**
+ * Point queries
+ */
 
 struct PointProjection {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -104,11 +80,9 @@ struct PointProjection {
 
 };
 
-enum class Proximity {
-  Intersecting,
-  WithinMargin,
-  Disjoint
-};
+/**
+ * Ray casting
+ */
 
 class Ray {
 
@@ -139,6 +113,44 @@ struct RayIntersection {
   double toi;
   Eigen::Vector3d normal;
 
+};
+
+/**
+ * Pairwise queries
+ */
+
+struct ClosestPoints {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  enum class Status {
+    Intersecting,
+    WithinMargin,
+    Disjoint
+  };
+
+  Status status;
+  Eigen::Vector3d point1;
+  Eigen::Vector3d point2;
+};
+
+struct Contact {
+
+  Contact() = default;
+  Contact(Eigen::Ref<const Eigen::Vector3d> world1, Eigen::Ref<const Eigen::Vector3d> world2,
+          Eigen::Ref<const Eigen::Vector3d> normal, double depth)
+      : world1(world1), world2(world2), normal(normal), depth(depth) {}
+
+  Eigen::Vector3d world1;
+  Eigen::Vector3d world2;
+  Eigen::Vector3d normal;
+  double depth;
+
+};
+
+enum class Proximity {
+  Intersecting,
+  WithinMargin,
+  Disjoint
 };
 
 /**

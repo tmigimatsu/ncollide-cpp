@@ -25,8 +25,17 @@
 struct ncollide2d_shape_t;
 
 namespace ncollide2d {
+namespace shape {
+
+class Shape;
+
+}  // namespace shape
+
 namespace query {
-namespace point_internal {
+
+/**
+ * Point queries
+ */
 
 struct PointProjection {
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
@@ -35,8 +44,91 @@ struct PointProjection {
   Eigen::Vector2d point;
 };
 
-}  // point_internal
-}  // query
+/**
+ * Pairwise queries
+ */
+
+struct ClosestPoints {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  enum class Status {
+    Intersecting,
+    WithinMargin,
+    Disjoint
+  };
+
+  Status status;
+  Eigen::Vector2d point1;
+  Eigen::Vector2d point2;
+};
+
+struct Contact {
+
+  Contact() = default;
+  Contact(Eigen::Ref<const Eigen::Vector2d> world1, Eigen::Ref<const Eigen::Vector2d> world2,
+          Eigen::Ref<const Eigen::Vector2d> normal, double depth)
+      : world1(world1), world2(world2), normal(normal), depth(depth) {}
+
+  Eigen::Vector2d world1;
+  Eigen::Vector2d world2;
+  Eigen::Vector2d normal;
+  double depth;
+
+};
+
+enum class Proximity {
+  Intersecting,
+  WithinMargin,
+  Disjoint
+};
+
+/**
+ * Computes the pair of closest points between two shapes.
+ *
+ * Returns None if the objects are separated by a distance greater than
+ * max_dist.
+ */
+ClosestPoints closest_points(const Eigen::Isometry2d& m1, const shape::Shape& g1,
+                             const Eigen::Isometry2d& m2, const shape::Shape& g2,
+                             double max_dist);
+
+/**
+ * Computes one contact point between two shapes.
+ *
+ * Returns None if the objects are separated by a distance greater than prediction.
+ */
+std::optional<Contact> contact(const Eigen::Isometry2d& m1, const shape::Shape& g1,
+                               const Eigen::Isometry2d& m2, const shape::Shape& g2,
+                               double prediction);
+
+/**
+ * Computes the minimum distance separating two shapes.
+ *
+ * Returns `0.0` if the objects are touching or penetrating.
+ */
+double distance(const Eigen::Isometry2d& m1, const shape::Shape& g1,
+                const Eigen::Isometry2d& m2, const shape::Shape& g2);
+
+/**
+ * Tests whether two shapes are in intersecting or separated by a distance
+ * smaller than margin.
+ */
+Proximity proximity(const Eigen::Isometry2d& m1, const shape::Shape& g1,
+                    const Eigen::Isometry2d& m2, const shape::Shape& g2,
+                    double margin);
+
+/**
+ * Computes the smallest time of impact of two shapes under translational
+ * movement.
+ *
+ * Returns 0.0 if the objects are touching or penetrating.
+ */
+std::optional<double> time_of_impact(const Eigen::Isometry2d& m1, const Eigen::Vector2d& v1,
+                                     const shape::Shape& g1,
+                                     const Eigen::Isometry2d& m2, const Eigen::Vector2d& v2,
+                                     const shape::Shape& g2);
+
+}  // namespace query
 
 namespace shape {
 
@@ -53,8 +145,8 @@ class Shape {
   ncollide2d_shape_t* ptr() { return ptr_.get(); }
   void set_ptr(ncollide2d_shape_t* ptr);
 
-  query::point_internal::PointProjection project_point(const Eigen::Isometry2d& m,
-                                                       const Eigen::Vector2d& pt, bool solid) const;
+  query::PointProjection project_point(const Eigen::Isometry2d& m,
+                                       const Eigen::Vector2d& pt, bool solid) const;
 
   double distance_to_point(const Eigen::Isometry2d& m, const Eigen::Vector2d& pt, bool solid) const;
 
@@ -63,17 +155,6 @@ class Shape {
  private:
 
   std::shared_ptr<ncollide2d_shape_t> ptr_;
-
-};
-
-class Cuboid : public Shape {
-
- public:
-
-  Cuboid(const Eigen::Vector2d& half_extents);
-  Cuboid(double x, double y);
-
-  Eigen::Map<const Eigen::Vector2d> half_extents() const;
 
 };
 
@@ -114,91 +195,18 @@ class ConvexPolygon : public Shape {
 
 };
 
+class Cuboid : public Shape {
+
+ public:
+
+  Cuboid(const Eigen::Vector2d& half_extents);
+  Cuboid(double x, double y);
+
+  Eigen::Map<const Eigen::Vector2d> half_extents() const;
+
+};
+
 }  // namespace shape
-
-namespace query {
-
-struct Contact {
-
-  Contact() = default;
-  Contact(Eigen::Ref<const Eigen::Vector2d> world1, Eigen::Ref<const Eigen::Vector2d> world2,
-          Eigen::Ref<const Eigen::Vector2d> normal, double depth)
-      : world1(world1), world2(world2), normal(normal), depth(depth) {}
-
-  Eigen::Vector2d world1;
-  Eigen::Vector2d world2;
-  Eigen::Vector2d normal;
-  double depth;
-
-};
-
-enum class Proximity {
-  Intersecting,
-  WithinMargin,
-  Disjoint
-};
-
-struct ClosestPoints {
-  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
-
-  enum class Status {
-    Intersecting,
-    WithinMargin,
-    Disjoint
-  };
-
-  Status status;
-  Eigen::Vector2d point1;
-  Eigen::Vector2d point2;
-};
-
-/**
- * Computes the pair of closest points between two shapes.
- *
- * Returns None if the objects are separated by a distance greater than
- * max_dist.
- */
-ClosestPoints closest_points(const Eigen::Isometry2d& m1, const shape::Shape& g1,
-                             const Eigen::Isometry2d& m2, const shape::Shape& g2,
-                             double max_dist);
-
-/**
- * Computes the minimum distance separating two shapes.
- *
- * Returns `0.0` if the objects are touching or penetrating.
- */
-double distance(const Eigen::Isometry2d& m1, const shape::Shape& g1,
-                const Eigen::Isometry2d& m2, const shape::Shape& g2);
-
-/**
- * Computes one contact point between two shapes.
- *
- * Returns None if the objects are separated by a distance greater than prediction.
- */
-std::optional<Contact> contact(const Eigen::Isometry2d& m1, const shape::Shape& g1,
-                               const Eigen::Isometry2d& m2, const shape::Shape& g2,
-                               double prediction);
-
-/**
- * Tests whether two shapes are in intersecting or separated by a distance
- * smaller than margin.
- */
-Proximity proximity(const Eigen::Isometry2d& m1, const shape::Shape& g1,
-                    const Eigen::Isometry2d& m2, const shape::Shape& g2,
-                    double margin);
-
-/**
- * Computes the smallest time of impact of two shapes under translational
- * movement.
- *
- * Returns 0.0 if the objects are touching or penetrating.
- */
-std::optional<double> time_of_impact(const Eigen::Isometry2d& m1, const Eigen::Vector2d& v1,
-                                     const shape::Shape& g1,
-                                     const Eigen::Isometry2d& m2, const Eigen::Vector2d& v2,
-                                     const shape::Shape& g2);
-
-}  // namespace query
 }  // namespace ncollide2d
 
 #endif  // EXTERNAL_NCOLLIDE_CPP_NCOLLIDE2D_H_
