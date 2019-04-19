@@ -19,7 +19,7 @@
 #if __cplusplus > 201402L
 #include <optional>  // std::optional
 #else
-#include "ctrl_utils/optional.h"
+#include <ctrl_utils/optional.h>
 #endif
 
 #include "ncollide2d.h"
@@ -100,6 +100,9 @@ class Ray {
   const ncollide3d_query_ray_t* ptr() const { return ptr_.get(); }
   ncollide3d_query_ray_t* ptr() { return ptr_.get(); }
   void set_ptr(ncollide3d_query_ray_t* ptr);
+
+  Eigen::Map<const Eigen::Vector3d> origin() const;
+  Eigen::Map<const Eigen::Vector3d> dir() const;
 
  private:
 

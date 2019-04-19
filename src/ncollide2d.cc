@@ -7,9 +7,9 @@
  * Authors: Toki Migimatsu
  */
 
-#include "ncollide/ncollide2d.h"
+#include "ncollide-cpp/ncollide2d.h"
 
-#include "ncollide/ncollide_ffi.h"
+#include "ncollide-cpp/ncollide_ffi.h"
 
 namespace {
 

@@ -7,9 +7,9 @@
  * Authors: Toki Migimatsu
  */
 
-#include "ncollide/ncollide3d.h"
+#include "ncollide-cpp/ncollide3d.h"
 
-#include "ncollide/ncollide_ffi.h"
+#include "ncollide-cpp/ncollide_ffi.h"
 
 #include <iostream>
 #include <limits>  // std::numeric_limits
@@ -56,6 +56,14 @@ Ray::Ray(Eigen::Ref<const Eigen::Vector3d> origin, Eigen::Ref<const Eigen::Vecto
 
 void Ray::set_ptr(ncollide3d_query_ray_t* ptr) {
   ptr_ = std::shared_ptr<ncollide3d_query_ray_t>(ptr, ncollide3d_query_ray_delete);
+}
+
+Eigen::Map<const Eigen::Vector3d> Ray::origin() const {
+  return Eigen::Map<const Eigen::Vector3d>(ncollide3d_query_ray_origin(ptr()));
+}
+
+Eigen::Map<const Eigen::Vector3d> Ray::dir() const {
+  return Eigen::Map<const Eigen::Vector3d>(ncollide3d_query_ray_dir(ptr()));
 }
 
 ClosestPoints closest_points(const Eigen::Isometry3d& m1, const shape::Shape& g1,

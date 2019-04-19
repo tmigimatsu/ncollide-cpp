@@ -17,7 +17,7 @@
 #if __cplusplus > 201402L
 #include <optional>  // std::optional
 #else
-#include "ctrl_utils/optional.h"
+#include <ctrl_utils/optional.h>
 #endif
 
 #include <Eigen/Eigen>

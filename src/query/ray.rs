@@ -7,6 +7,8 @@
  * Authors: Toki Migimatsu
  */
 
+extern crate nalgebra as na;
+
 use crate::nc;
 use crate::math;
 
@@ -22,6 +24,20 @@ pub fn ray_new(ptr_origin: Option<&[f64; nc::math::DIM]>,
     let dir = nc::math::Vector::from_column_slice(ptr_dir.unwrap());
     let ray = nc::query::Ray::new(origin, dir);
     Box::into_raw(Box::new(ray))
+}
+
+pub fn ray_origin(ray: Option<&nc::query::Ray<f64>>) -> *const f64 {
+    use na::storage::Storage;
+
+    let ray = ray.unwrap();
+    ray.origin.coords.data.ptr()
+}
+
+pub fn ray_dir(ray: Option<&nc::query::Ray<f64>>) -> *const f64 {
+    use na::storage::Storage;
+
+    let ray = ray.unwrap();
+    ray.dir.data.ptr()
 }
 
 pub fn toi_with_ray(shape: Option<&nc::shape::ShapeHandle<f64>>,

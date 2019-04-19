@@ -163,6 +163,12 @@ ncollide3d_query_ray_t* ncollide3d_query_ray_new(const double origin[3], const d
 void ncollide2d_query_ray_delete(ncollide2d_query_ray_t* ray);
 void ncollide3d_query_ray_delete(ncollide3d_query_ray_t* ray);
 
+const double* ncollide2d_query_ray_origin(const ncollide2d_query_ray_t* ray);
+const double* ncollide3d_query_ray_origin(const ncollide3d_query_ray_t* ray);
+
+const double* ncollide2d_query_ray_dir(const ncollide2d_query_ray_t* ray);
+const double* ncollide3d_query_ray_dir(const ncollide3d_query_ray_t* ray);
+
 bool ncollide2d_query_toi_with_ray(const ncollide2d_shape_t* shape,
                                    const ncollide2d_math_isometry_t* m,
                                    const ncollide2d_query_ray_t* ray, bool solid,

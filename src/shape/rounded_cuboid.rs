@@ -8,7 +8,6 @@
  */
 
 extern crate nalgebra as na;
-extern crate ncollide2d as nc2;
 
 use crate::nc;
 
@@ -157,88 +156,203 @@ impl<N: na::Real> nc::query::RayCast<N> for RoundedCuboid<N> {
         // use nc::query::ray_internal::implicit_toi_and_normal_with_ray;
 
         let ls_ray = ray.inverse_transform_by(m);
-        let dl = nc::math::Point::from(self.half_extents().map(|x| -x - self.radius()));
-        let dr = nc::math::Point::from(self.half_extents().map(|x| x + self.radius()));
-        let res = nc::bounding_volume::AABB::new(dl, dr).toi_and_normal_with_ray(&nc::math::Isometry::identity(),
-                                                                                 &ls_ray, solid);
-        if res.is_none() {
-            return res
-        }
-        let mut res = res.unwrap();
 
         // let res = implicit_toi_and_normal_with_ray(&nc::math::Isometry::identity(),
         //                                            self,
         //                                            &mut nc::query::algorithms::VoronoiSimplex::new(),
         //                                            &ls_ray,
         //                                            solid);
+        // return res;
 
-        let point = ls_ray.origin + ls_ray.dir * res.toi;
+        // Ray cast with bounding box first
+        let dl = nc::math::Point::from(self.half_extents().map(|x| -x - self.radius()));
+        let dr = nc::math::Point::from(self.half_extents().map(|x| x + self.radius()));
+        let res_bb = nc::bounding_volume::AABB::new(dl, dr)
+            .toi_and_normal_with_ray(&nc::math::Isometry::identity(), &ls_ray, solid);
+        if res_bb.is_none() {
+            return res_bb
+        }
+        let res_bb = res_bb.unwrap();
+        let point_bb = ls_ray.origin + ls_ray.dir * res_bb.toi;
 
         // Compute direction axes in descending order of magnitude
-        let mut dir = (0 as usize..nc::math::DIM).collect::<Vec<usize>>();
-        dir.sort_by(|i, j| (-(point[*i].abs())).partial_cmp(&-(point[*j].abs())).unwrap());
-        // for i in &mut dir {
-        //     if point[*i] < na::zero() {
-        //         *i += nc::math::DIM;
-        //     }
-        // }
-
-        if point[dir[1]].abs() < self.half_extents()[dir[1]] &&
-           point[dir[2]].abs() < self.half_extents()[dir[2]] {
-            // Inside square face
-            res.normal.fill(na::zero());
-            res.normal[dir[0]] = na::one();
-        } else if point[dir[2]].abs() > self.half_extents()[dir[2]] {
-            // Inside corner
-            let mut origin_sphere = self.half_extents().clone();
-            for i in 0..3 {
-                if point[dir[i]] < na::zero() {
-                    origin_sphere[dir[i]] = -origin_sphere[dir[i]];
-                }
-            }
-            let sphere = nc::shape::Ball::new(self.radius());
-            let m = na::Isometry::from_parts(na::Translation::from(origin_sphere), na::UnitQuaternion::identity());
-
-            match sphere.toi_and_normal_with_ray(&m, ray, solid) {
-                Some(intersect) => { res = intersect; }
-                None => return None
-            };
-            // TODO: Check corners if none
-        } else {
-            use nc2::query::RayCast;
-
-            // Inside edge
-            let mut origin_circle = nc2::math::Vector::new(self.half_extents()[dir[0]], self.half_extents()[dir[1]]);
-            for i in 0..2 {
-                if point[dir[i]] < na::zero() {
-                    origin_circle[dir[i]] = -origin_circle[dir[i]];
-                }
-            }
-
-            // toi with cylinder aligned with dir[2]
-            let circle = nc2::shape::Ball::new(self.radius());
-            let m = na::Isometry::from_parts(na::Translation::from(origin_circle), na::UnitComplex::identity());
-            let ray2_origin = nc2::math::Point::new(ray.origin[dir[0]], ray.origin[dir[1]]);
-            let ray2_dir = nc2::math::Vector::new(ray.dir[dir[0]], ray.dir[dir[1]]);
-            let ray2 = nc2::query::Ray::new(ray2_origin, ray2_dir);
-            let intersect = circle.toi_and_normal_with_ray(&m, &ray2, solid);
-            if intersect.is_none() {
-                return None
-            }
-            let intersect = intersect.unwrap();
-            let point_cylinder = ray.origin + ray.dir * intersect.toi;
-            if point_cylinder[dir[2]].abs() > self.half_extents()[dir[2]] {
-                return None
-            }
-
-            res.normal[dir[0]] = intersect.normal[0];
-            res.normal[dir[1]] = intersect.normal[1];
-            res.normal[dir[2]] = na::zero();
-            res.toi = intersect.toi;
+        let mut dir = [0 as usize; nc::math::DIM];
+        for i in 0..nc::math::DIM {
+            dir[i] = i;
         }
-        res.normal = m * res.normal;
-        Some(res)
+        dir.sort_by(|i, j| (-(point_bb[*i].abs())).partial_cmp(&-(point_bb[*j].abs())).unwrap());
+
+        // Inside square face if axes 1 and 2 within half extents
+        // (axis 0 must be outside)
+        if point_bb[dir[1]].abs() < self.half_extents()[dir[1]] &&
+           point_bb[dir[2]].abs() < self.half_extents()[dir[2]] {
+            let mut res = nc::query::RayIntersection::<N>::new(res_bb.toi, nc::math::Vector::zeros(),
+                                                               nc::shape::FeatureId::Unknown);
+            res.normal[dir[0]] = na::one();
+            if ls_ray.dir[dir[0]] * res.normal[dir[0]] > na::zero() {
+                res.normal[dir[0]] = -res.normal[dir[0]];
+            }
+            // if point_bb[dir[0]] < na::zero() {
+            //     res.normal[dir[0]] = -res.normal[dir[0]];
+            // }
+            res.normal = m * res.normal;
+            return Some(res)
+        }
+
+        // Inside corner if axis 2 outside half extent
+        // (axes 0 and 1 must also be outside)
+        if point_bb[dir[2]].abs() > self.half_extents()[dir[2]] {
+            return toi_with_rounded_corner(self.half_extents(), self.radius(), &ls_ray, solid,
+                                           &point_bb, &dir)
+                .or_else(|| {
+                    toi_with_rounded_edge(self.half_extents(), self.radius(), &ls_ray, solid,
+                                          &point_bb, &dir)
+                }).or_else(|| {
+                    let dir_mod = [dir[0], dir[2], dir[1]];
+                    toi_with_rounded_edge(self.half_extents(), self.radius(), &ls_ray, solid,
+                                          &point_bb, &dir_mod)
+                }).or_else(|| {
+                    let dir_mod = [dir[1], dir[2], dir[0]];
+                    toi_with_rounded_edge(self.half_extents(), self.radius(), &ls_ray, solid,
+                                          &point_bb, &dir_mod)
+                }).map(|mut r| {
+                    r.normal = m * r.normal;
+                    if ls_ray.dir.dot(&r.normal) > na::zero() {
+                        r.normal = -r.normal;
+                    }
+                    r
+                })
+        }
+
+        // Inside edge
+        toi_with_rounded_edge(self.half_extents(), self.radius(), &ls_ray, solid, &point_bb, &dir)
+            .map(|mut r| {
+                r.normal = m * r.normal;
+                if ls_ray.dir.dot(&r.normal) > na::zero() {
+                    r.normal = -r.normal;
+                }
+                r
+            })
     }
+}
+
+fn toi_with_rounded_corner<N: na::Real>(half_extents: &nc::math::Vector<N>,
+                                        radius: N,
+                                        ls_ray: &nc::query::Ray<N>,
+                                        solid: bool,
+                                        point_bb: &nc::math::Point<N>,
+                                        dir: &[usize; nc::math::DIM]) -> Option<nc::query::RayIntersection<N>> {
+    let mut origin_sphere = half_extents.clone();
+    for i in 0..3 {
+        if point_bb[dir[i]] < na::zero() {
+            origin_sphere[dir[i]] = -origin_sphere[dir[i]];
+        }
+    }
+
+    // Set up equation: || origin + t * dir || = radius^2
+    let o = ls_ray.origin.coords - origin_sphere;
+    let b = o.dot(&ls_ray.dir);
+    let c = o.dot(&o) - radius * radius;
+    let delta = b * b - c;
+    if c > na::zero() && b > na::zero() || delta < na::zero() {
+        // Ray is outside circle and points away or no solution to quadratic equation
+        return None
+    }
+
+    // Check first impact
+    let t = -b - delta.sqrt();
+    if t <= na::zero() {
+        // Origin inside of the ball
+        if solid {
+            let res = nc::query::RayIntersection::new(na::zero(), nc::math::Vector::zeros(),
+                                                      nc::shape::FeatureId::Unknown);
+            return Some(res)
+        }
+    } else {
+        let point_corner = (o + ls_ray.dir * t).normalize();
+        if point_corner.component_mul(&point_bb.coords).min() > na::zero() {
+            let res = nc::query::RayIntersection::new(t, point_corner,
+                                                      nc::shape::FeatureId::Unknown);
+            return Some(res)
+        }
+    }
+
+    // Check second impact
+    let t = -b + delta.sqrt();
+    let point_corner = (o + ls_ray.dir * t).normalize();
+    if point_corner.component_mul(&point_bb.coords).min() > na::zero() {
+        let res = nc::query::RayIntersection::new(t, point_corner, nc::shape::FeatureId::Unknown);
+        return Some(res)
+    }
+
+    None
+}
+
+fn toi_with_rounded_edge<N: na::Real>(half_extents: &nc::math::Vector<N>,
+                                      radius: N,
+                                      ls_ray: &nc::query::Ray<N>,
+                                      solid: bool,
+                                      point_bb: &nc::math::Point<N>,
+                                      dir: &[usize; nc::math::DIM]) -> Option<nc::query::RayIntersection<N>> {
+    let mut origin_circle = na::Vector2::new(half_extents[dir[0]],
+                                             half_extents[dir[1]]);
+    for i in 0..2 {
+        if point_bb[dir[i]] < na::zero() {
+            origin_circle[i] = -origin_circle[i];
+        }
+    }
+    let ray2_origin = na::Vector2::new(ls_ray.origin[dir[0]], ls_ray.origin[dir[1]]);
+    let ray2_dir = na::Vector2::new(ls_ray.dir[dir[0]], ls_ray.dir[dir[1]]);
+
+    let o = ray2_origin - origin_circle;
+    let a = ray2_dir.dot(&ray2_dir);
+    let b = o.dot(&ray2_dir);
+    let c = o.dot(&o) - radius * radius;
+    let delta = b * b - a * c;
+    if c > na::zero() && b > na::zero() || delta < na::zero() {
+        // Ray is outside circle and points away or no solution to quadratic equation
+        return None
+    }
+    let point2 = na::Vector2::new(point_bb[dir[0]], point_bb[dir[1]]);
+
+    // Check first impact
+    let t = (-b - delta.sqrt()) / a;
+    if t <= na::zero() {
+        // Origin inside of the ball
+        if solid {
+            let res = nc::query::RayIntersection::new(na::zero(), nc::math::Vector::zeros(),
+                                                      nc::shape::FeatureId::Unknown);
+            return Some(res)
+        }
+    } else if ls_ray.origin[dir[2]] + ls_ray.dir[dir[2]] * t.abs() <= half_extents[dir[2]] {
+        let point_corner = (o + ray2_dir * t).normalize();
+        if point_corner.component_mul(&point2).min() > na::zero() {
+            let mut res = nc::query::RayIntersection::new(t, nc::math::Vector::zeros(),
+                                                          nc::shape::FeatureId::Unknown);
+            res.normal[dir[0]] = point_corner[0];
+            res.normal[dir[1]] = point_corner[1];
+            // res.normal = m * res.normal;
+            return Some(res)
+        }
+    }
+
+    // Check second impact
+    let t = (-b + delta.sqrt()) / a;
+    if ls_ray.origin[dir[2]] + ls_ray.dir[dir[2]] * t.abs() > half_extents[dir[2]] {
+        return None
+    }
+
+    let point_corner = (o + ray2_dir * t).normalize();
+    if point_corner.component_mul(&point2).min() > na::zero() {
+        let mut res = nc::query::RayIntersection::new(t, nc::math::Vector::zeros(),
+                                                      nc::shape::FeatureId::Unknown);
+        res.normal[dir[0]] = point_corner[0];
+        res.normal[dir[1]] = point_corner[1];
+        // res.normal = m * res.normal;
+        return Some(res)
+    }
+
+    None
 }
 
 impl<N: na::Real> nc::shape::Shape<N> for RoundedCuboid<N> {

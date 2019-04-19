@@ -54,20 +54,30 @@ unsafe extern fn ncollide2d_query_ray_delete(ptr: *mut nc::query::Ray<f64>) {
 }
 
 #[no_mangle]
-pub extern fn ncollide2d_query_toi_with_ray(shape: Option<&nc::shape::ShapeHandle<f64>>,
-                                            m: Option<&math::CIsometry>,
-                                            ray: Option<&nc::query::Ray<f64>>,
-                                            solid: bool,
-                                            out_toi: Option<&mut f64>) -> bool {
+extern fn ncollide2d_query_ray_origin(ray: Option<&nc::query::Ray<f64>>) -> *const f64 {
+    ray::ray_origin(ray)
+}
+
+#[no_mangle]
+extern fn ncollide2d_query_ray_dir(ray: Option<&nc::query::Ray<f64>>) -> *const f64 {
+    ray::ray_dir(ray)
+}
+
+#[no_mangle]
+extern fn ncollide2d_query_toi_with_ray(shape: Option<&nc::shape::ShapeHandle<f64>>,
+                                        m: Option<&math::CIsometry>,
+                                        ray: Option<&nc::query::Ray<f64>>,
+                                        solid: bool,
+                                        out_toi: Option<&mut f64>) -> bool {
     ray::toi_with_ray(shape, m, ray, solid, out_toi)
 }
 
 #[no_mangle]
-pub extern fn ncollide2d_query_toi_and_normal_with_ray(shape: Option<&nc::shape::ShapeHandle<f64>>,
-                                                       m: Option<&math::CIsometry>,
-                                                       ray: Option<&nc::query::Ray<f64>>,
-                                                       solid: bool,
-                                                       out_intersect: Option<&mut ray::CRayIntersection>) -> bool {
+extern fn ncollide2d_query_toi_and_normal_with_ray(shape: Option<&nc::shape::ShapeHandle<f64>>,
+                                                   m: Option<&math::CIsometry>,
+                                                   ray: Option<&nc::query::Ray<f64>>,
+                                                   solid: bool,
+                                                   out_intersect: Option<&mut ray::CRayIntersection>) -> bool {
     ray::toi_and_normal_with_ray(shape, m, ray, solid, out_intersect)
 }
 

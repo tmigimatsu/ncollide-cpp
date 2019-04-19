@@ -27,6 +27,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(NCOLLIDE_CPP_CMAKE_DIR ${PROJECT_SOURCE_DIR}/cmake)
 set(NCOLLIDE_CPP_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 set(NCOLLIDE_CPP_SRC_DIR ${PROJECT_SOURCE_DIR}/src)
+set(NCOLLIDE_CPP_TEST_DIR ${PROJECT_SOURCE_DIR}/test)
 
 # Create ncollide-cpp library
 add_library(${NCOLLIDE_CPP_LIB} SHARED)
@@ -84,6 +85,7 @@ target_link_libraries(${NCOLLIDE_CPP_LIB}
         ${NCOLLIDE_DIR}/libncollide2d_cpp.a
         ${NCOLLIDE_DIR}/libncollide3d_cpp.a
         ctrl_utils::ctrl_utils
+        dl
 )
 add_dependencies(${NCOLLIDE_CPP_LIB} ncollide)
 
@@ -100,6 +102,17 @@ target_include_directories(${NCOLLIDE_CPP_LIB}
 target_sources(${NCOLLIDE_CPP_LIB} PRIVATE
     ${NCOLLIDE_CPP_SRC_DIR}/ncollide2d.cc
     ${NCOLLIDE_CPP_SRC_DIR}/ncollide3d.cc
+)
+
+add_executable(ncollide_test ${NCOLLIDE_CPP_TEST_DIR}/main.cc)
+target_include_directories(ncollide_test
+    PRIVATE
+        $<INSTALL_INTERFACE:include>
+        $<BUILD_INTERFACE:${NCOLLIDE_CPP_INCLUDE_DIR}>
+)
+target_link_libraries(ncollide_test
+    PRIVATE
+        ${NCOLLIDE_CPP_LIB}
 )
 
 # Use GNUInstallDirs to install libraries into correct locations on all platforms
