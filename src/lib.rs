@@ -17,6 +17,7 @@ mod bounding_volume;
 mod math;
 mod query;
 mod shape;
+mod transformation;
 
 #[cfg(test)]
 mod tests {

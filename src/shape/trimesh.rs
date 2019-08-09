@@ -29,6 +29,24 @@ pub fn trimesh_new(ptr_points: *const [f64; nc::math::DIM],
     Box::into_raw(Box::new(handle))
 }
 
+pub fn trimesh_num_points(shape: Option<&nc::shape::ShapeHandle<f64>>) -> usize {
+    let maybe_trimesh = shape.unwrap().as_shape::<nc::shape::TriMesh<f64>>();
+    match maybe_trimesh {
+        Some(ref trimesh) =>  { trimesh.points().len() }
+        None => { 0 }
+    }
+}
+
+pub fn trimesh_point(shape: Option<&nc::shape::ShapeHandle<f64>>, i: usize) -> *const f64 {
+    use na::storage::Storage;
+
+    let maybe_trimesh = shape.unwrap().as_shape::<nc::shape::TriMesh<f64>>();
+    match maybe_trimesh {
+        Some(ref trimesh) =>  { trimesh.points()[i].coords.data.ptr() }
+        None => { std::ptr::null() }
+    }
+}
+
 #[derive(Debug)]
 struct ParseVectorError;
 impl std::fmt::Display for ParseVectorError {

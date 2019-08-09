@@ -7,11 +7,12 @@
  * Authors: Toki Migimatsu
  */
 
-#ifndef EXTERNAL_NCOLLIDE_CPP_NCOLLIDE3D_H_
-#define EXTERNAL_NCOLLIDE_CPP_NCOLLIDE3D_H_
+#ifndef NCOLLIDE_CPP_NCOLLIDE3D_H_
+#define NCOLLIDE_CPP_NCOLLIDE3D_H_
 
 #include <Eigen/Eigen>
 
+#include <array>    // std::array
 #include <memory>   // std::shared_ptr, std::unique_ptr
 #include <utility>  // std::pair
 #include <vector>   // std::vector
@@ -26,12 +27,14 @@
 
 struct ncollide3d_shape_t;
 struct ncollide3d_bounding_volume_aabb_t;
+struct ncollide3d_bounding_volume_bounding_sphere_t;
 struct ncollide3d_query_ray_t;
 
 namespace ncollide3d {
 namespace shape {
 
 class Shape;
+class TriMesh;
 
 }  // namespace shape
 
@@ -57,12 +60,38 @@ class AABB {
 
 };
 
+class BoundingSphere {
+
+ public:
+
+  BoundingSphere(ncollide3d_bounding_volume_bounding_sphere_t* ptr);
+
+  const ncollide3d_bounding_volume_bounding_sphere_t* ptr() const { return ptr_.get(); }
+  ncollide3d_bounding_volume_bounding_sphere_t* ptr() { return ptr_.get(); }
+  void set_ptr(ncollide3d_bounding_volume_bounding_sphere_t* ptr);
+
+  double radius() const;
+
+ private:
+
+  std::shared_ptr<ncollide3d_bounding_volume_bounding_sphere_t> ptr_;
+
+};
+
 /**
  * Computes the axis-aligned bounding box of a shape g transformed by m.
  *
  * Same as g.aabb(m).
  */
 AABB aabb(const shape::Shape& g, const Eigen::Isometry3d& m = Eigen::Isometry3d::Identity());
+
+/**
+ * Computes the bounding sphere of a shape g transformed by m.
+ *
+ * Same as g.bounding_sphere(m).
+ */
+BoundingSphere bounding_sphere(const shape::Shape& g,
+                               const Eigen::Isometry3d& m = Eigen::Isometry3d::Identity());
 
 }  // namespace bounding_volume
 
@@ -225,6 +254,11 @@ class Shape {
   bounding_volume::AABB aabb(const Eigen::Isometry3d& m = Eigen::Isometry3d::Identity()) const;
 
   /**
+   * The bounding sphere of self.
+   */
+  bounding_volume::BoundingSphere bounding_sphere(const Eigen::Isometry3d& m = Eigen::Isometry3d::Identity()) const;
+
+  /**
    * Projects a point on self transformed by m.
    */
   query::PointProjection project_point(const Eigen::Isometry3d& m, const Eigen::Vector3d& pt,
@@ -253,9 +287,12 @@ class Shape {
                                                                 const query::Ray& ray,
                                                                 bool solid) const;
 
-  virtual std::shared_ptr<ncollide2d::shape::Shape> project_2d() const = 0;
+  // TODO: Make not unique_ptr?
+  virtual std::unique_ptr<ncollide2d::shape::Shape> project_2d() const = 0;
 
-  virtual Eigen::Vector3d normal(const Eigen::Vector3d& point) const = 0;
+  virtual TriMesh to_trimesh() const;
+
+  virtual TriMesh convex_hull() const;
 
  private:
 
@@ -273,9 +310,7 @@ class Ball : public Shape {
 
   double radius() const;
 
-  virtual std::shared_ptr<ncollide2d::shape::Shape> project_2d() const override;
-
-  virtual Eigen::Vector3d normal(const Eigen::Vector3d& point) const override;
+  virtual std::unique_ptr<ncollide2d::shape::Shape> project_2d() const override;
 
 };
 
@@ -288,9 +323,7 @@ class Capsule : public Shape {
   double half_height() const;
   double radius() const;
 
-  virtual std::shared_ptr<ncollide2d::shape::Shape> project_2d() const override;
-
-  virtual Eigen::Vector3d normal(const Eigen::Vector3d& point) const override;
+  virtual std::unique_ptr<ncollide2d::shape::Shape> project_2d() const override;
 
 };
 
@@ -300,15 +333,27 @@ class Compound : public Shape {
 
   Compound(ShapeVector&& shapes);
 
-  // std::pair<Eigen::Isometry3d, std::shared_ptr<Shape>>& shapes(size_t i);
+  virtual std::unique_ptr<ncollide2d::shape::Shape> project_2d() const override;
 
-  virtual std::shared_ptr<ncollide2d::shape::Shape> project_2d() const override;
-
-  virtual Eigen::Vector3d normal(const Eigen::Vector3d& point) const override;
+  const ShapeVector& shapes() const { return shapes_; }
 
  private:
 
-  std::vector<std::pair<Eigen::Isometry3d, std::unique_ptr<Shape>>> shapes_;
+  ShapeVector shapes_;
+
+};
+
+class ConvexHull : public Shape {
+
+ public:
+
+  ConvexHull(const std::vector<std::array<double, 3>>& points);
+
+  virtual std::unique_ptr<ncollide2d::shape::Shape> project_2d() const override;
+
+  size_t num_points() const;
+
+  Eigen::Map<const Eigen::Vector3d> point(size_t i) const;
 
 };
 
@@ -321,11 +366,24 @@ class Cuboid : public Shape {
 
   Eigen::Map<const Eigen::Vector3d> half_extents() const;
 
-  virtual std::shared_ptr<ncollide2d::shape::Shape> project_2d() const override;
+  virtual std::unique_ptr<ncollide2d::shape::Shape> project_2d() const override;
 
-  virtual Eigen::Vector3d normal(const Eigen::Vector3d& point) const override;
+  virtual TriMesh to_trimesh() const override;
 
 };
+
+// class Cylinder : public Shape {
+
+//  public:
+
+//   Cylinder(double half_height, double radius);
+
+//   double half_height() const;
+//   double radius() const;
+
+//   virtual std::unique_ptr<ncollide2d::shape::Shape> project_2d() const override;
+
+// };
 
 class RoundedCuboid : public Shape {
 
@@ -336,9 +394,7 @@ class RoundedCuboid : public Shape {
 
   Eigen::Map<const Eigen::Vector3d> half_extents() const;
 
-  virtual std::shared_ptr<ncollide2d::shape::Shape> project_2d() const override;
-
-  virtual Eigen::Vector3d normal(const Eigen::Vector3d& point) const override;
+  virtual std::unique_ptr<ncollide2d::shape::Shape> project_2d() const override;
 
 };
 
@@ -346,16 +402,25 @@ class TriMesh : public Shape {
 
  public:
 
+  TriMesh(ncollide3d_shape_t* ptr) : Shape(ptr) {}
   TriMesh(const std::string& filename);
   TriMesh(const std::vector<double[3]>& points, const std::vector<size_t[3]>& indices);
 
-  virtual std::shared_ptr<ncollide2d::shape::Shape> project_2d() const override;
+  virtual std::unique_ptr<ncollide2d::shape::Shape> project_2d() const override;
 
-  virtual Eigen::Vector3d normal(const Eigen::Vector3d& point) const override;
+  size_t num_points() const;
+
+  Eigen::Map<const Eigen::Vector3d> point(size_t i) const;
 
 };
 
 }  // namespace shape
+
+namespace transformation {
+
+shape::TriMesh convex_hull(const std::vector<std::array<double, 3>>& points);
+
+}
 
 namespace query {
 
@@ -431,4 +496,4 @@ class ContactManifoldGenerator {
 */
 }  // namespace ncollide3d
 
-#endif  // EXTERNAL_NCOLLIDE_CPP_NCOLLIDE3D_H_
+#endif  // NCOLLIDE_CPP_NCOLLIDE3D_H_

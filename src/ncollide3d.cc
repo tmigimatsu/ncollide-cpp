@@ -7,12 +7,12 @@
  * Authors: Toki Migimatsu
  */
 
-#include "ncollide-cpp/ncollide3d.h"
+#include "ncollide_cpp/ncollide3d.h"
 
-#include "ncollide-cpp/ncollide_ffi.h"
+#include <exception>  // std::runtime_error
+#include <limits>     // std::numeric_limits
 
-#include <iostream>
-#include <limits>  // std::numeric_limits
+#include "ncollide_cpp/ncollide_ffi.h"
 
 namespace {
 
@@ -22,6 +22,11 @@ ncollide3d_math_isometry_t ConvertIsometry(const Eigen::Isometry3d& T) {
   Eigen::AngleAxisd aa(T.linear());
   Eigen::Map<Eigen::Vector3d>(result.rotation) = aa.angle() * aa.axis();
   return result;
+}
+
+Eigen::Isometry2d Isometry3dto2d(const Eigen::Isometry3d& T) {
+  const Eigen::AngleAxisd aa(T.linear());
+  return Eigen::Translation2d(T.translation().head<2>()) * Eigen::Rotation2Dd(aa.angle());
 }
 
 }  // namespace
@@ -43,6 +48,18 @@ Eigen::Map<const Eigen::Vector3d> AABB::mins() const {
 AABB aabb(const shape::Shape& g, const Eigen::Isometry3d& m) {
   ncollide3d_math_isometry_t c_m = ConvertIsometry(m);
   return AABB(ncollide3d_bounding_volume_aabb(g.ptr(), &c_m));
+}
+
+BoundingSphere::BoundingSphere(ncollide3d_bounding_volume_bounding_sphere_t* ptr)
+    : ptr_(ptr, ncollide3d_bounding_volume_bounding_sphere_delete) {}
+
+BoundingSphere bounding_sphere(const shape::Shape& g, const Eigen::Isometry3d& m) {
+  ncollide3d_math_isometry_t c_m = ConvertIsometry(m);
+  return BoundingSphere(ncollide3d_bounding_volume_bounding_sphere(g.ptr(), &c_m));
+}
+
+double BoundingSphere::radius() const {
+  return ncollide3d_bounding_volume_bounding_sphere_radius(ptr());
 }
 
 }  // namespace bounding_volume
@@ -168,6 +185,10 @@ bounding_volume::AABB Shape::aabb(const Eigen::Isometry3d& m) const {
   return bounding_volume::aabb(*this, m);
 }
 
+bounding_volume::BoundingSphere Shape::bounding_sphere(const Eigen::Isometry3d& m) const {
+  return bounding_volume::bounding_sphere(*this, m);
+}
+
 query::PointProjection Shape::project_point(const Eigen::Isometry3d& m,
                                             const Eigen::Vector3d& pt, bool solid) const {
   ncollide3d_math_isometry_t c_m = ConvertIsometry(m);
@@ -212,6 +233,22 @@ std::optional<query::RayIntersection> Shape::toi_and_normal_with_ray(const Eigen
   return intersect;
 }
 
+TriMesh Shape::to_trimesh() const {
+  bounding_volume::AABB box = aabb();
+  Cuboid cuboid((box.maxs() - box.mins()) / 2.);
+  return cuboid.to_trimesh();
+}
+
+TriMesh Shape::convex_hull() const {
+  TriMesh trimesh = to_trimesh();
+  std::vector<std::array<double, 3>> points;
+  for (size_t i = 0; i < trimesh.num_points(); i++) {
+    const auto point = trimesh.point(i);
+    points.push_back({point(0), point(1), point(2)});
+  }
+  return transformation::convex_hull(points);
+}
+
 /**
  * Ball
  */
@@ -222,12 +259,8 @@ double Ball::radius() const {
   return ncollide3d_shape_ball_radius(ptr());
 }
 
-std::shared_ptr<ncollide2d::shape::Shape> Ball::project_2d() const {
-  return std::make_shared<ncollide2d::shape::Ball>(radius());
-}
-
-Eigen::Vector3d Ball::normal(const Eigen::Vector3d& point) const {
-  return point.normalized();
+std::unique_ptr<ncollide2d::shape::Shape> Ball::project_2d() const {
+  return std::make_unique<ncollide2d::shape::Ball>(radius());
 }
 
 /**
@@ -244,24 +277,15 @@ double Capsule::radius() const {
   return ncollide3d_shape_capsule_radius(ptr());
 }
 
-std::shared_ptr<ncollide2d::shape::Shape> Capsule::project_2d() const {
-  return std::make_shared<ncollide2d::shape::Capsule>(half_height(), radius());
-}
-
-Eigen::Vector3d Capsule::normal(const Eigen::Vector3d& point) const {
-  Eigen::Vector3d n = point;
-  const double y = point(1);
-  const double h = half_height();
-  n(1) = y > h ? y - h : (y < h ? y + h : 0.);
-  return n.normalized();
+std::unique_ptr<ncollide2d::shape::Shape> Capsule::project_2d() const {
+  return std::make_unique<ncollide2d::shape::Capsule>(half_height(), radius());
 }
 
 /**
  * Compound
  */
 
-Compound::Compound(std::vector<std::pair<Eigen::Isometry3d, std::unique_ptr<Shape>>>&& shapes)
-    : shapes_(std::move(shapes)) {
+Compound::Compound(ShapeVector&& shapes) : shapes_(std::move(shapes)) {
   std::vector<ncollide3d_math_isometry_t> transforms;
   std::vector<const ncollide3d_shape_t*> raw_shapes;
   transforms.reserve(shapes_.size());
@@ -271,25 +295,42 @@ Compound::Compound(std::vector<std::pair<Eigen::Isometry3d, std::unique_ptr<Shap
     raw_shapes.push_back(shape.second->ptr());
   }
   set_ptr(ncollide3d_shape_compound_new(transforms.data(), raw_shapes.data(), shapes_.size()));
+
+  // TODO: Replace shapes_ with new shapes created in rust
 }
 
-std::shared_ptr<ncollide2d::shape::Shape> Compound::project_2d() const {
-  return std::make_shared<ncollide2d::shape::Ball>(0.);
-}
+std::unique_ptr<ncollide2d::shape::Shape> Compound::project_2d() const {
 
-Eigen::Vector3d Compound::normal(const Eigen::Vector3d& point) const {
-  Shape* shape_closest = nullptr;
-  double dist_min = std::numeric_limits<double>::infinity();
-  for (const auto& key_val : shapes_) {
-    const Eigen::Isometry3d& m = key_val.first;
-    const std::unique_ptr<Shape>& shape = key_val.second;
-    const double dist = shape->distance_to_point(m, point, false);
-    if (dist < dist_min) {
-      dist_min = dist;
-      shape_closest = shape.get();
-    }
+  std::vector<std::pair<Eigen::Isometry2d, std::unique_ptr<ncollide2d::shape::Shape>>> shapes_2d;
+  shapes_2d.reserve(shapes_.size());
+  for (const auto& m_g : shapes_) {
+    const Eigen::Isometry3d& m = m_g.first;
+    const std::unique_ptr<Shape>& g = m_g.second;
+    shapes_2d.push_back({ Isometry3dto2d(m), g->project_2d() });
   }
-  return shape_closest->normal(point);
+
+  // throw std::runtime_error("Compound::project_2d(): Not implemented yet.");
+  return std::make_unique<ncollide2d::shape::Compound>(std::move(shapes_2d));
+}
+
+/**
+ * Convex hull
+ */
+
+ConvexHull::ConvexHull(const std::vector<std::array<double, 3>>& points)
+  : Shape(ncollide3d_shape_convex_hull_try_from_points(reinterpret_cast<const double(*)[3]>(points.data()), points.size())) {}
+
+std::unique_ptr<ncollide2d::shape::Shape> ConvexHull::project_2d() const {
+  throw std::runtime_error("ConvexHull::project_2d(): Not implemented yet.");
+  return std::make_unique<ncollide2d::shape::ConvexPolygon>(std::vector<std::array<double, 2>>({}));
+}
+
+size_t ConvexHull::num_points() const {
+  return ncollide3d_shape_convex_hull_num_points(ptr());
+}
+
+Eigen::Map<const Eigen::Vector3d> ConvexHull::point(size_t i) const {
+  return Eigen::Map<const Eigen::Vector3d>(ncollide3d_shape_convex_hull_point(ptr(), i));
 }
 
 /**
@@ -306,20 +347,13 @@ Eigen::Map<const Eigen::Vector3d> Cuboid::half_extents() const {
   return Eigen::Map<const Eigen::Vector3d>(ncollide3d_shape_cuboid_half_extents(ptr()));
 }
 
-std::shared_ptr<ncollide2d::shape::Shape> Cuboid::project_2d() const {
+std::unique_ptr<ncollide2d::shape::Shape> Cuboid::project_2d() const {
   Eigen::Vector3d h = half_extents();
-  return std::make_shared<ncollide2d::shape::Cuboid>(h(0), h(1));
+  return std::make_unique<ncollide2d::shape::Cuboid>(h(0), h(1));
 }
 
-Eigen::Vector3d Cuboid::normal(const Eigen::Vector3d& point) const {
-  Eigen::Vector3d n;
-  const Eigen::Vector3d hh = half_extents();
-  for (size_t i = 0; i < 3; i++) {
-    if (std::abs(point(i)) < hh(i) - 1e-6) {
-      n(i) = 0.;
-    }
-  }
-  return n.normalized();
+TriMesh Cuboid::to_trimesh() const {
+  return ncollide3d_shape_cuboid_to_trimesh(ptr());
 }
 
 /**
@@ -337,21 +371,28 @@ Eigen::Map<const Eigen::Vector3d> RoundedCuboid::half_extents() const {
   return Eigen::Map<const Eigen::Vector3d>(ncollide3d_shape_rounded_cuboid_half_extents(ptr()));
 }
 
-std::shared_ptr<ncollide2d::shape::Shape> RoundedCuboid::project_2d() const {
+std::unique_ptr<ncollide2d::shape::Shape> RoundedCuboid::project_2d() const {
   Eigen::Vector3d h = half_extents();
-  return std::make_shared<ncollide2d::shape::Cuboid>(h(0), h(1));
+  return std::make_unique<ncollide2d::shape::Cuboid>(h(0), h(1));
 }
 
-Eigen::Vector3d RoundedCuboid::normal(const Eigen::Vector3d& point) const {
-  Eigen::Vector3d n;
-  const Eigen::Vector3d hh = half_extents();
-  for (size_t i = 0; i < 3; i++) {
-    const double p = point(i);
-    const double h = hh(i);
-    n(i) = p > h ? p - h : (p < h ? p + h : 0.);
-  }
-  return n.normalized();
-}
+/**
+ * Cylinder
+ */
+
+// Cylinder::Cylinder(double half_height, double radius)
+//     : Shape(ncollide3d_shape_capsule_new(half_height, radius)) {}
+
+// double Cylinder::half_height() const {
+//   return ncollide3d_shape_capsule_half_height(ptr());
+// }
+// double Cylinder::radius() const {
+//   return ncollide3d_shape_capsule_radius(ptr());
+// }
+
+// std::unique_ptr<ncollide2d::shape::Shape> Cylinder::project_2d() const {
+//   return std::make_unique<ncollide2d::shape::Ball>(radius());
+// }
 
 /**
  * Trimesh
@@ -364,14 +405,27 @@ TriMesh::TriMesh(const std::vector<double[3]>& points, const std::vector<size_t[
     : Shape(ncollide3d_shape_trimesh_new(points.data(), points.size(),
                                          indices.data(), indices.size())) {}
 
-std::shared_ptr<ncollide2d::shape::Shape> TriMesh::project_2d() const {
-  return std::make_shared<ncollide2d::shape::Ball>(0.);
+size_t TriMesh::num_points() const {
+  return ncollide3d_shape_trimesh_num_points(ptr());
 }
 
-Eigen::Vector3d TriMesh::normal(const Eigen::Vector3d& point) const {
-  throw std::runtime_error("Not implemented yet.");
-  return Eigen::Vector3d::Zero();
+Eigen::Map<const Eigen::Vector3d> TriMesh::point(size_t i) const {
+  return Eigen::Map<const Eigen::Vector3d>(ncollide3d_shape_trimesh_point(ptr(), i));
+}
+
+std::unique_ptr<ncollide2d::shape::Shape> TriMesh::project_2d() const {
+  throw std::runtime_error("TriMesh::project_2d(): Not implemented yet.");
+  return std::make_unique<ncollide2d::shape::Ball>(0.);
 }
 
 }  // namespace shape
+
+namespace transformation {
+
+shape::TriMesh convex_hull(const std::vector<std::array<double, 3>>& points) {
+  const auto arr_points = reinterpret_cast<const double(*)[3]>(points.data());
+  return ncollide3d_transformation_convex_hull(arr_points, points.size());
+}
+
+}  // namespace transformation
 }  // namespace ncollide3d

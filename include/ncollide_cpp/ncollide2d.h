@@ -7,8 +7,8 @@
  * Authors: Toki Migimatsu
  */
 
-#ifndef EXTERNAL_NCOLLIDE_CPP_NCOLLIDE2D_H_
-#define EXTERNAL_NCOLLIDE_CPP_NCOLLIDE2D_H_
+#ifndef NCOLLIDE_CPP_NCOLLIDE2D_H_
+#define NCOLLIDE_CPP_NCOLLIDE2D_H_
 
 #include <memory>   // std::shared_ptr, std::unique_ptr
 #include <utility>  // std::pair
@@ -23,6 +23,9 @@
 #include <Eigen/Eigen>
 
 struct ncollide2d_shape_t;
+struct ncollide2d_bounding_volume_aabb_t;
+struct ncollide2d_bounding_volume_bounding_sphere_t;
+struct ncollide2d_query_ray_t;
 
 namespace ncollide2d {
 namespace shape {
@@ -30,6 +33,63 @@ namespace shape {
 class Shape;
 
 }  // namespace shape
+
+namespace bounding_volume {
+
+class AABB {
+
+ public:
+
+  AABB(ncollide2d_bounding_volume_aabb_t* ptr);
+
+  const ncollide2d_bounding_volume_aabb_t* ptr() const { return ptr_.get(); }
+  ncollide2d_bounding_volume_aabb_t* ptr() { return ptr_.get(); }
+  void set_ptr(ncollide2d_bounding_volume_aabb_t* ptr);
+
+  Eigen::Map<const Eigen::Vector2d> maxs() const;
+
+  Eigen::Map<const Eigen::Vector2d> mins() const;
+
+ private:
+
+  std::shared_ptr<ncollide2d_bounding_volume_aabb_t> ptr_;
+
+};
+
+class BoundingSphere {
+
+ public:
+
+  BoundingSphere(ncollide2d_bounding_volume_bounding_sphere_t* ptr);
+
+  const ncollide2d_bounding_volume_bounding_sphere_t* ptr() const { return ptr_.get(); }
+  ncollide2d_bounding_volume_bounding_sphere_t* ptr() { return ptr_.get(); }
+  void set_ptr(ncollide2d_bounding_volume_bounding_sphere_t* ptr);
+
+  double radius() const;
+
+ private:
+
+  std::shared_ptr<ncollide2d_bounding_volume_bounding_sphere_t> ptr_;
+
+};
+
+/**
+ * Computes the axis-aligned bounding box of a shape g transformed by m.
+ *
+ * Same as g.aabb(m).
+ */
+AABB aabb(const shape::Shape& g, const Eigen::Isometry2d& m = Eigen::Isometry2d::Identity());
+
+/**
+ * Computes the bounding sphere of a shape g transformed by m.
+ *
+ * Same as g.bounding_sphere(m).
+ */
+BoundingSphere bounding_sphere(const shape::Shape& g,
+                               const Eigen::Isometry2d& m = Eigen::Isometry2d::Identity());
+
+}  // namespace bounding_volume
 
 namespace query {
 
@@ -42,6 +102,44 @@ struct PointProjection {
 
   bool is_inside;
   Eigen::Vector2d point;
+};
+
+/**
+ * Ray casting
+ */
+
+class Ray {
+
+ public:
+
+  Ray() = default;
+  Ray(ncollide2d_query_ray_t* ptr);
+
+  /**
+   * Creates a new ray starting from origin and with the direction dir.
+   * dir must be normalized.
+   */
+  Ray(Eigen::Ref<const Eigen::Vector2d> origin, Eigen::Ref<const Eigen::Vector2d> dir);
+
+  const ncollide2d_query_ray_t* ptr() const { return ptr_.get(); }
+  ncollide2d_query_ray_t* ptr() { return ptr_.get(); }
+  void set_ptr(ncollide2d_query_ray_t* ptr);
+
+  Eigen::Map<const Eigen::Vector2d> origin() const;
+  Eigen::Map<const Eigen::Vector2d> dir() const;
+
+ private:
+
+  std::shared_ptr<ncollide2d_query_ray_t> ptr_;
+
+};
+
+struct RayIntersection {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  double toi;
+  Eigen::Vector2d normal;
+
 };
 
 /**
@@ -145,6 +243,16 @@ class Shape {
   ncollide2d_shape_t* ptr() { return ptr_.get(); }
   void set_ptr(ncollide2d_shape_t* ptr);
 
+  /**
+   * The AABB of self.
+   */
+  bounding_volume::AABB aabb(const Eigen::Isometry2d& m = Eigen::Isometry2d::Identity()) const;
+
+  /**
+   * The bounding sphere of self.
+   */
+  bounding_volume::BoundingSphere bounding_sphere(const Eigen::Isometry2d& m = Eigen::Isometry2d::Identity()) const;
+
   query::PointProjection project_point(const Eigen::Isometry2d& m,
                                        const Eigen::Vector2d& pt, bool solid) const;
 
@@ -152,11 +260,26 @@ class Shape {
 
   bool contains_point(const Eigen::Isometry2d& m, const Eigen::Vector2d& pt) const;
 
+  /**
+   * Computes the time of impact between this transformed shape and a ray.
+   */
+  std::optional<double> toi_with_ray(const Eigen::Isometry2d& m, const query::Ray& ray,
+                                     bool solid) const;
+
+  /**
+   * Computes the time of impact and normal between this transformed shape and a ray.
+   */
+  std::optional<query::RayIntersection> toi_and_normal_with_ray(const Eigen::Isometry2d& m,
+                                                                const query::Ray& ray,
+                                                                bool solid) const;
+
  private:
 
   std::shared_ptr<ncollide2d_shape_t> ptr_;
 
 };
+
+using ShapeVector = std::vector<std::pair<Eigen::Isometry2d, std::unique_ptr<Shape>>>;
 
 class Ball : public Shape {
 
@@ -183,7 +306,13 @@ class Compound : public Shape {
 
  public:
 
-  Compound(const std::vector<std::pair<Eigen::Isometry2d, std::unique_ptr<Shape>>>& shapes);
+  Compound(ShapeVector&& shapes);
+
+  const ShapeVector& shapes() const { return shapes_; }
+
+ private:
+
+  ShapeVector shapes_;
 
 };
 
@@ -191,7 +320,7 @@ class ConvexPolygon : public Shape {
 
  public:
 
-  ConvexPolygon(const std::vector<double[2]>& points);
+  ConvexPolygon(const std::vector<std::array<double, 2>>& points);
 
 };
 
@@ -209,4 +338,4 @@ class Cuboid : public Shape {
 }  // namespace shape
 }  // namespace ncollide2d
 
-#endif  // EXTERNAL_NCOLLIDE_CPP_NCOLLIDE2D_H_
+#endif  // NCOLLIDE_CPP_NCOLLIDE2D_H_

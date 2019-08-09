@@ -14,7 +14,7 @@ cmake_minimum_required(VERSION 3.6)
 project(ncollide_cpp VERSION 0.1.0 LANGUAGES CXX)
 
 # Set CMake flags
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_VERBOSE_MAKEFILE ON) # TODO: Remove
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
@@ -51,10 +51,10 @@ function(download_package PACKAGE_NAME)
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/${PACKAGE_NAME})
 endfunction()
 
-find_package(ctrl_utils 1.0.0 QUIET)
+find_package(ctrl_utils 1.1.0 QUIET)
 if(NOT ctrl_utils_FOUND)
     download_package(ctrl_utils)
-    find_package(ctrl_utils 1.0.0 REQUIRED)
+    find_package(ctrl_utils 1.1.0 REQUIRED)
 endif()
 
 
@@ -100,6 +100,7 @@ target_include_directories(${NCOLLIDE_CPP_LIB}
 
 # Attach sources
 target_sources(${NCOLLIDE_CPP_LIB} PRIVATE
+    ${NCOLLIDE_CPP_SRC_DIR}/ncollide.cc
     ${NCOLLIDE_CPP_SRC_DIR}/ncollide2d.cc
     ${NCOLLIDE_CPP_SRC_DIR}/ncollide3d.cc
 )

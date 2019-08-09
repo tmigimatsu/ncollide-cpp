@@ -8,6 +8,7 @@
  */
 
 mod aabb;
+mod bounding_sphere;
 
 #[cfg(feature = "dim2")]
 mod bounding_volume2d;

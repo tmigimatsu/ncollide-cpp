@@ -7,8 +7,8 @@
  * Authors: Toki Migimatsu
  */
 
-#ifndef EXTERNAL_NCOLLIDE_CPP_NCOLLIDE_FFI_H_
-#define EXTERNAL_NCOLLIDE_CPP_NCOLLIDE_FFI_H_
+#ifndef NCOLLIDE_CPP_NCOLLIDE_FFI_H_
+#define NCOLLIDE_CPP_NCOLLIDE_FFI_H_
 
 /**
  * Bounding volume
@@ -16,6 +16,8 @@
 
 struct ncollide2d_bounding_volume_aabb_t;
 struct ncollide3d_bounding_volume_aabb_t;
+struct ncollide2d_bounding_volume_bounding_sphere_t;
+struct ncollide3d_bounding_volume_bounding_sphere_t;
 
 /**
  * Math
@@ -125,6 +127,20 @@ const double* ncollide3d_bounding_volume_aabb_maxs(const ncollide3d_bounding_vol
 
 const double* ncollide2d_bounding_volume_aabb_mins(const ncollide2d_bounding_volume_aabb_t* aabb);
 const double* ncollide3d_bounding_volume_aabb_mins(const ncollide3d_bounding_volume_aabb_t* aabb);
+
+ncollide2d_bounding_volume_bounding_sphere_t*
+ncollide2d_bounding_volume_bounding_sphere(const ncollide2d_shape_t* g,
+                                           const ncollide2d_math_isometry_t* m);
+
+ncollide3d_bounding_volume_bounding_sphere_t*
+ncollide3d_bounding_volume_bounding_sphere(const ncollide3d_shape_t* g,
+                                           const ncollide3d_math_isometry_t* m);
+
+double ncollide2d_bounding_volume_bounding_sphere_radius(const ncollide2d_bounding_volume_bounding_sphere_t* sphere);
+double ncollide3d_bounding_volume_bounding_sphere_radius(const ncollide3d_bounding_volume_bounding_sphere_t* sphere);
+
+void ncollide2d_bounding_volume_bounding_sphere_delete(const ncollide2d_bounding_volume_bounding_sphere_t* sphere);
+void ncollide3d_bounding_volume_bounding_sphere_delete(const ncollide3d_bounding_volume_bounding_sphere_t* sphere);
 
 /**
  * Point queries
@@ -265,6 +281,14 @@ ncollide3d_shape_t* ncollide3d_shape_compound_new(const ncollide3d_math_isometry
                                                   const ncollide3d_shape_t** shapes, size_t n);
 
 /**
+ * Convex hull
+ */
+ncollide3d_shape_t* ncollide3d_shape_convex_hull_try_from_points(const double(* points)[3],
+                                                                 size_t n);
+size_t ncollide3d_shape_convex_hull_num_points(const ncollide3d_shape_t* trimesh);
+const double* ncollide3d_shape_convex_hull_point(const ncollide3d_shape_t* trimesh, size_t i);
+
+/**
  * Convex polygon
  */
 
@@ -281,6 +305,18 @@ ncollide3d_shape_t* ncollide3d_shape_cuboid_new(double x, double y, double z);
 const double* ncollide2d_shape_cuboid_half_extents(const ncollide2d_shape_t* cuboid);
 const double* ncollide3d_shape_cuboid_half_extents(const ncollide3d_shape_t* cuboid);
 
+ncollide3d_shape_t* ncollide3d_shape_cuboid_to_trimesh(const ncollide3d_shape_t* cuboid);
+
+/**
+ * Cylinder
+ */
+
+// ncollide3d_shape_t* ncollide3d_shape_cylinder_new(double half_height, double radius);
+
+// const double ncollide3d_shape_cylinder_half_height(const ncollide3d_shape_t* ball);
+
+// const double ncollide3d_shape_cylinder_radius(const ncollide3d_shape_t* ball);
+
 /**
  * Rounded cuboid
  */
@@ -296,6 +332,8 @@ const double* ncollide3d_shape_rounded_cuboid_half_extents(const ncollide3d_shap
 
 ncollide3d_shape_t* ncollide3d_shape_trimesh_new(const double(* points)[3], size_t npoints,
                                                  const size_t(* indices)[3], size_t nfaces);
+size_t ncollide3d_shape_trimesh_num_points(const ncollide3d_shape_t* trimesh);
+const double* ncollide3d_shape_trimesh_point(const ncollide3d_shape_t* trimesh, size_t i);
 ncollide3d_shape_t* ncollide3d_shape_trimesh_file(const char* filename);
 
 /**
@@ -305,6 +343,13 @@ ncollide3d_shape_t* ncollide3d_shape_trimesh_file(const char* filename);
 void ncollide2d_shape_delete(ncollide2d_shape_t* shape);
 void ncollide3d_shape_delete(ncollide3d_shape_t* shape);
 
+/**
+ * Transformation
+ */
+
+ncollide3d_shape_t* ncollide3d_transformation_convex_hull(const double(* points)[3],
+                                                          size_t npoints);
+
 }  // extern "C"
 
-#endif  // EXTERNAL_NCOLLIDE_CPP_NCOLLIDE_FFI_H_
+#endif  // NCOLLIDE_CPP_NCOLLIDE_FFI_H_

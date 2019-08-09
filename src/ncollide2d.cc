@@ -7,9 +7,9 @@
  * Authors: Toki Migimatsu
  */
 
-#include "ncollide-cpp/ncollide2d.h"
+#include "ncollide_cpp/ncollide2d.h"
 
-#include "ncollide-cpp/ncollide_ffi.h"
+#include "ncollide_cpp/ncollide_ffi.h"
 
 namespace {
 
@@ -24,7 +24,56 @@ ncollide2d_math_isometry_t ConvertIsometry(const Eigen::Isometry2d& T) {
 }  // namespace
 
 namespace ncollide2d {
+namespace bounding_volume {
+
+AABB::AABB(ncollide2d_bounding_volume_aabb_t* ptr)
+    : ptr_(ptr, ncollide2d_bounding_volume_aabb_delete) {}
+
+Eigen::Map<const Eigen::Vector2d> AABB::maxs() const {
+  return Eigen::Map<const Eigen::Vector2d>(ncollide2d_bounding_volume_aabb_maxs(ptr()));
+}
+
+Eigen::Map<const Eigen::Vector2d> AABB::mins() const {
+  return Eigen::Map<const Eigen::Vector2d>(ncollide2d_bounding_volume_aabb_mins(ptr()));
+}
+
+AABB aabb(const shape::Shape& g, const Eigen::Isometry2d& m) {
+  ncollide2d_math_isometry_t c_m = ConvertIsometry(m);
+  return AABB(ncollide2d_bounding_volume_aabb(g.ptr(), &c_m));
+}
+
+BoundingSphere::BoundingSphere(ncollide2d_bounding_volume_bounding_sphere_t* ptr)
+    : ptr_(ptr, ncollide2d_bounding_volume_bounding_sphere_delete) {}
+
+BoundingSphere bounding_sphere(const shape::Shape& g, const Eigen::Isometry2d& m) {
+  ncollide2d_math_isometry_t c_m = ConvertIsometry(m);
+  return BoundingSphere(ncollide2d_bounding_volume_bounding_sphere(g.ptr(), &c_m));
+}
+
+double BoundingSphere::radius() const {
+  return ncollide2d_bounding_volume_bounding_sphere_radius(ptr());
+}
+
+}  // namespace bounding_volume
+
 namespace query {
+
+Ray::Ray(ncollide2d_query_ray_t* ptr) : ptr_(ptr, ncollide2d_query_ray_delete) {}
+
+Ray::Ray(Eigen::Ref<const Eigen::Vector2d> origin, Eigen::Ref<const Eigen::Vector2d> dir)
+    : ptr_(ncollide2d_query_ray_new(origin.data(), dir.data()), ncollide2d_query_ray_delete) {}
+
+void Ray::set_ptr(ncollide2d_query_ray_t* ptr) {
+  ptr_ = std::shared_ptr<ncollide2d_query_ray_t>(ptr, ncollide2d_query_ray_delete);
+}
+
+Eigen::Map<const Eigen::Vector2d> Ray::origin() const {
+  return Eigen::Map<const Eigen::Vector2d>(ncollide2d_query_ray_origin(ptr()));
+}
+
+Eigen::Map<const Eigen::Vector2d> Ray::dir() const {
+  return Eigen::Map<const Eigen::Vector2d>(ncollide2d_query_ray_dir(ptr()));
+}
 
 ClosestPoints closest_points(const Eigen::Isometry2d& m1, const shape::Shape& g1,
                              const Eigen::Isometry2d& m2, const shape::Shape& g2,
@@ -124,6 +173,14 @@ void Shape::set_ptr(ncollide2d_shape_t* ptr) {
   ptr_ = std::shared_ptr<ncollide2d_shape_t>(ptr, ncollide2d_shape_delete);
 }
 
+bounding_volume::AABB Shape::aabb(const Eigen::Isometry2d& m) const {
+  return bounding_volume::aabb(*this, m);
+}
+
+bounding_volume::BoundingSphere Shape::bounding_sphere(const Eigen::Isometry2d& m) const {
+  return bounding_volume::bounding_sphere(*this, m);
+}
+
 query::PointProjection Shape::project_point(const Eigen::Isometry2d& m,
                                             const Eigen::Vector2d& pt,
                                             bool solid) const {
@@ -143,6 +200,30 @@ double Shape::distance_to_point(const Eigen::Isometry2d& m, const Eigen::Vector2
 bool Shape::contains_point(const Eigen::Isometry2d& m, const Eigen::Vector2d& pt) const {
   ncollide2d_math_isometry_t c_m = ConvertIsometry(m);
   return ncollide2d_query_contains_point(ptr_.get(), &c_m, pt.data());
+}
+
+std::optional<double> Shape::toi_with_ray(const Eigen::Isometry2d& m, const query::Ray& ray,
+                                          bool solid) const {
+  ncollide2d_math_isometry_t c_m = ConvertIsometry(m);
+  double out_toi;
+  bool result = ncollide2d_query_toi_with_ray(ptr(), &c_m, ray.ptr(), solid, &out_toi);
+  std::optional<double> toi;
+  if (result) toi = out_toi;
+  return toi;
+}
+
+std::optional<query::RayIntersection> Shape::toi_and_normal_with_ray(const Eigen::Isometry2d& m,
+                                                                     const query::Ray& ray,
+                                                                     bool solid) const {
+  ncollide2d_math_isometry_t c_m = ConvertIsometry(m);
+  ncollide2d_query_ray_intersection_t out_ray;
+  bool result = ncollide2d_query_toi_and_normal_with_ray(ptr(), &c_m, ray.ptr(), solid, &out_ray);
+  std::optional<query::RayIntersection> intersect;
+  if (result) {
+    Eigen::Map<const Eigen::Vector2d> normal(out_ray.normal);
+    intersect = { out_ray.toi, normal };
+  }
+  return intersect;
 }
 
 /**
@@ -174,24 +255,24 @@ double Capsule::radius() const {
  * Compound
  */
 
-Compound::Compound(const std::vector<std::pair<Eigen::Isometry2d, std::unique_ptr<Shape>>>& shapes) {
+Compound::Compound(ShapeVector&& shapes) : shapes_(std::move(shapes)) {
   std::vector<ncollide2d_math_isometry_t> transforms;
   std::vector<const ncollide2d_shape_t*> raw_shapes;
-  transforms.reserve(shapes.size());
-  raw_shapes.reserve(shapes.size());
-  for (const std::pair<Eigen::Isometry2d, std::unique_ptr<Shape>>& shape : shapes) {
+  transforms.reserve(shapes_.size());
+  raw_shapes.reserve(shapes_.size());
+  for (const std::pair<Eigen::Isometry2d, std::unique_ptr<Shape>>& shape : shapes_) {
     transforms.push_back(ConvertIsometry(shape.first));
     raw_shapes.push_back(shape.second->ptr());
   }
-  set_ptr(ncollide2d_shape_compound_new(transforms.data(), raw_shapes.data(), shapes.size()));
+  set_ptr(ncollide2d_shape_compound_new(transforms.data(), raw_shapes.data(), shapes_.size()));
 }
 
 /**
  * Convex polygon
  */
 
-ConvexPolygon::ConvexPolygon(const std::vector<double[2]>& points)
-    : Shape(ncollide2d_shape_convex_polygon_try_from_points(points.data(), points.size())) {}
+ConvexPolygon::ConvexPolygon(const std::vector<std::array<double, 2>>& points)
+    : Shape(ncollide2d_shape_convex_polygon_try_from_points(reinterpret_cast<const double(*)[2]>(points.data()), points.size())) {}
 
 /**
  * Cuboid
