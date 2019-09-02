@@ -10,7 +10,6 @@
 extern crate nalgebra as na;
 
 use crate::nc;
-use std::sync::Arc;
 
 pub fn convex_hull_new(ptr_points: *const [f64; nc::math::DIM],
                        npoints: usize) -> *mut nc::shape::ShapeHandle<f64> {

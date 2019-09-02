@@ -410,7 +410,6 @@ fn toi_and_normal_with_rounded_edge<N: na::Real>(half_extents: &nc::math::Vector
                                                       nc::shape::FeatureId::Unknown);
         res.normal[dir[0]] = point_corner[0];
         res.normal[dir[1]] = point_corner[1];
-        // res.normal = m * res.normal;
         return Some(res)
     }
 
@@ -482,5 +481,13 @@ pub fn rounded_cuboid_half_extents(shape: Option<&nc::shape::ShapeHandle<f64>>) 
     match maybe_cuboid {
         Some(ref cuboid) => { cuboid.half_extents().data.ptr() },
         None => { std::ptr::null() }
+    }
+}
+
+pub fn rounded_cuboid_radius(shape: Option<&nc::shape::ShapeHandle<f64>>) -> f64 {
+    let maybe_cuboid = shape.unwrap().as_shape::<RoundedCuboid<f64>>();
+    match maybe_cuboid {
+        Some(ref cuboid) => { cuboid.radius() },
+        None => { 0. }
     }
 }

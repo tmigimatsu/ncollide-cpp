@@ -133,6 +133,8 @@ class Ray {
   Eigen::Map<const Eigen::Vector3d> origin() const;
   Eigen::Map<const Eigen::Vector3d> dir() const;
 
+  Eigen::Vector3d point_at(double t) const;
+
  private:
 
   std::shared_ptr<ncollide3d_query_ray_t> ptr_;
@@ -282,6 +284,8 @@ class Shape {
 
   /**
    * Computes the time of impact and normal between this transformed shape and a ray.
+   *
+   * The normal will point opposite the direction of the ray.
    */
   std::optional<query::RayIntersection> toi_and_normal_with_ray(const Eigen::Isometry3d& m,
                                                                 const query::Ray& ray,
@@ -393,6 +397,8 @@ class RoundedCuboid : public Shape {
   RoundedCuboid(double x, double y, double z, double radius);
 
   Eigen::Map<const Eigen::Vector3d> half_extents() const;
+
+  double radius() const;
 
   virtual std::unique_ptr<ncollide2d::shape::Shape> project_2d() const override;
 

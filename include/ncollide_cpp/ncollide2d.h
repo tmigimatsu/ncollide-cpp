@@ -128,6 +128,8 @@ class Ray {
   Eigen::Map<const Eigen::Vector2d> origin() const;
   Eigen::Map<const Eigen::Vector2d> dir() const;
 
+  Eigen::Vector2d point_at(double t) const;
+
  private:
 
   std::shared_ptr<ncollide2d_query_ray_t> ptr_;

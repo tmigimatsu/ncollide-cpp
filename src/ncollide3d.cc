@@ -83,6 +83,10 @@ Eigen::Map<const Eigen::Vector3d> Ray::dir() const {
   return Eigen::Map<const Eigen::Vector3d>(ncollide3d_query_ray_dir(ptr()));
 }
 
+Eigen::Vector3d Ray::point_at(double t) const {
+  return origin() + t * dir();
+}
+
 ClosestPoints closest_points(const Eigen::Isometry3d& m1, const shape::Shape& g1,
                              const Eigen::Isometry3d& m2, const shape::Shape& g2,
                              double max_dist) {
@@ -371,9 +375,15 @@ Eigen::Map<const Eigen::Vector3d> RoundedCuboid::half_extents() const {
   return Eigen::Map<const Eigen::Vector3d>(ncollide3d_shape_rounded_cuboid_half_extents(ptr()));
 }
 
+double RoundedCuboid::radius() const {
+  return ncollide3d_shape_rounded_cuboid_radius(ptr());
+}
+
 std::unique_ptr<ncollide2d::shape::Shape> RoundedCuboid::project_2d() const {
-  Eigen::Vector3d h = half_extents();
+  const auto h = half_extents();
   return std::make_unique<ncollide2d::shape::Cuboid>(h(0), h(1));
+  // const double r = radius();
+  // return std::make_unique<ncollide2d::shape::Cuboid>(h(0) + r, h(1) + r);
 }
 
 /**

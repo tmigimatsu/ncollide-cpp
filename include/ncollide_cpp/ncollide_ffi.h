@@ -326,6 +326,8 @@ ncollide3d_shape_t* ncollide3d_shape_rounded_cuboid_new(double x, double y, doub
 
 const double* ncollide3d_shape_rounded_cuboid_half_extents(const ncollide3d_shape_t* cuboid);
 
+double ncollide3d_shape_rounded_cuboid_radius(const ncollide3d_shape_t* cuboid);
+
 /**
  * Trimesh
  */

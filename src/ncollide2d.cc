@@ -75,6 +75,10 @@ Eigen::Map<const Eigen::Vector2d> Ray::dir() const {
   return Eigen::Map<const Eigen::Vector2d>(ncollide2d_query_ray_dir(ptr()));
 }
 
+Eigen::Vector2d Ray::point_at(double t) const {
+  return origin() + t * dir();
+}
+
 ClosestPoints closest_points(const Eigen::Isometry2d& m1, const shape::Shape& g1,
                              const Eigen::Isometry2d& m2, const shape::Shape& g2,
                              double max_dist) {

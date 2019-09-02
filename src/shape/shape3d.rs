@@ -131,6 +131,12 @@ extern fn ncollide3d_shape_rounded_cuboid_half_extents(shape: Option<&nc::shape:
     rounded_cuboid::rounded_cuboid_half_extents(shape)
 }
 
+#[no_mangle]
+extern fn ncollide3d_shape_rounded_cuboid_radius(shape: Option<&nc::shape::ShapeHandle<f64>>)
+        -> f64 {
+    rounded_cuboid::rounded_cuboid_radius(shape)
+}
+
 /**
  * Trimesh
  */
