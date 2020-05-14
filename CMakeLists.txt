@@ -28,6 +28,7 @@ set(LIB_CMAKE_DIR ${PROJECT_SOURCE_DIR}/cmake)
 set(LIB_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 set(LIB_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src)
 set(LIB_TEST_DIR ${PROJECT_SOURCE_DIR}/test)
+set(LIB_EXTERNAL_DIR ${PROJECT_SOURCE_DIR}/external)
 
 # Create ncollide-cpp library
 add_library(${NCOLLIDE_CPP_LIB} SHARED)
@@ -60,6 +61,7 @@ find_package(ctrl_utils 1.2.0 QUIET)
 if(NOT ctrl_utils_FOUND)
     download_package(ctrl_utils 1.2.0)
     find_package(ctrl_utils 1.2.0 REQUIRED)
+    list(APPEND NCOLLIDE_CPP_DEPENDENCIES "ctrl_utils ${ctrl_utils_VERSION} REQUIRED")
 endif()
 
 

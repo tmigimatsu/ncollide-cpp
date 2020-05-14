@@ -7,13 +7,16 @@
 # Authors: Toki Migimatsu
 ############################################################
 
-get_filename_component(NCOLLIDE_CPP_CMAKE_DIR "${CMAKE_CURRENT_LIST_FILE}" PATH)
 include(CMakeFindDependencyMacro)
 
-list(APPEND CMAKE_MODULE_PATH ${NCOLLIDE_CPP_CMAKE_DIR})
-find_dependency(ctrl_utils 1.0.0 REQUIRED)
-list(REMOVE_AT CMAKE_MODULE_PATH -1)
+list(INSERT CMAKE_MODULE_PATH 0 @CMAKE_BINARY_DIR@ @LIB_CMAKE_DIR@)
+set(NCOLLIDE_CPP_DEPENDENCIES "@NCOLLIDE_CPP_DEPENDENCIES@")
+foreach(DEPENDENCY ${NCOLLIDE_CPP_DEPENCIES})
+    separate_arguments(DEPENDENCY)
+    find_dependency(${DEPENDENCY})
+endforeach()
 
-if(NOT TARGET ncollide_cpp::ncollide_cpp)
-    include("${NCOLLIDE_CPP_CMAKE_DIR}/ncollide_cppTargets.cmake")
-endif()
+@PACKAGE_INIT@
+
+include("@CMAKE_BINARY_DIR@/@NCOLLIDE_CPP_TARGETS@.cmake")
+check_required_components(@PROJECT_NAME@)
