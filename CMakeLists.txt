@@ -24,10 +24,10 @@ endif()
 # Define directories
 set(NCOLLIDE_CPP_LIB ncollide_cpp)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-set(NCOLLIDE_CPP_CMAKE_DIR ${PROJECT_SOURCE_DIR}/cmake)
-set(NCOLLIDE_CPP_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
-set(NCOLLIDE_CPP_SRC_DIR ${PROJECT_SOURCE_DIR}/src)
-set(NCOLLIDE_CPP_TEST_DIR ${PROJECT_SOURCE_DIR}/test)
+set(LIB_CMAKE_DIR ${PROJECT_SOURCE_DIR}/cmake)
+set(LIB_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
+set(LIB_SOURCE_DIR ${PROJECT_SOURCE_DIR}/src)
+set(LIB_TEST_DIR ${PROJECT_SOURCE_DIR}/test)
 
 # Create ncollide-cpp library
 add_library(${NCOLLIDE_CPP_LIB} SHARED)
@@ -43,18 +43,23 @@ target_compile_options(${NCOLLIDE_CPP_LIB} PRIVATE
 
 # Find dependencies
 function(download_package PACKAGE_NAME)
-    configure_file(${NCOLLIDE_CPP_CMAKE_DIR}/${PACKAGE_NAME}-CMakeLists.txt.in
-        ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}/CMakeLists.txt)
+    set(EXT_PACKAGE_VERSION ${ARGV1})
+    if(EXISTS ${LIB_CMAKE_DIR}/Find${PACKAGE_NAME}.cmake.in)
+        configure_file(${LIB_CMAKE_DIR}/Find${PACKAGE_NAME}.cmake.in
+            ${CMAKE_BINARY_DIR}/Find${PACKAGE_NAME}.cmake @ONLY)
+    endif()
+    configure_file(${LIB_CMAKE_DIR}/${PACKAGE_NAME}-CMakeLists.txt.in
+        ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}/CMakeLists.txt @ONLY)
     execute_process(COMMAND ${CMAKE_COMMAND} -G ${CMAKE_GENERATOR} .
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/${PACKAGE_NAME})
     execute_process(COMMAND ${CMAKE_COMMAND} --build .
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/${PACKAGE_NAME})
 endfunction()
 
-find_package(ctrl_utils 1.1.0 QUIET)
+find_package(ctrl_utils 1.2.0 QUIET)
 if(NOT ctrl_utils_FOUND)
-    download_package(ctrl_utils)
-    find_package(ctrl_utils 1.1.0 REQUIRED)
+    download_package(ctrl_utils 1.2.0)
+    find_package(ctrl_utils 1.2.0 REQUIRED)
 endif()
 
 
@@ -93,23 +98,23 @@ add_dependencies(${NCOLLIDE_CPP_LIB} ncollide)
 target_include_directories(${NCOLLIDE_CPP_LIB}
     PUBLIC
         $<INSTALL_INTERFACE:include>
-        $<BUILD_INTERFACE:${NCOLLIDE_CPP_INCLUDE_DIR}>
+        $<BUILD_INTERFACE:${LIB_INCLUDE_DIR}>
     PRIVATE
-        ${NCOLLIDE_CPP_INCLUDE_DIR}/ncollide_cpp
-        ${NCOLLIDE_CPP_SRC_DIR})
+        ${LIB_INCLUDE_DIR}/ncollide_cpp
+        ${LIB_SOURCE_DIR})
 
 # Attach sources
 target_sources(${NCOLLIDE_CPP_LIB} PRIVATE
-    ${NCOLLIDE_CPP_SRC_DIR}/ncollide.cc
-    ${NCOLLIDE_CPP_SRC_DIR}/ncollide2d.cc
-    ${NCOLLIDE_CPP_SRC_DIR}/ncollide3d.cc
+    ${LIB_SOURCE_DIR}/ncollide.cc
+    ${LIB_SOURCE_DIR}/ncollide2d.cc
+    ${LIB_SOURCE_DIR}/ncollide3d.cc
 )
 
-add_executable(ncollide_test ${NCOLLIDE_CPP_TEST_DIR}/main.cc)
+add_executable(ncollide_test ${LIB_TEST_DIR}/main.cc)
 target_include_directories(ncollide_test
     PRIVATE
         $<INSTALL_INTERFACE:include>
-        $<BUILD_INTERFACE:${NCOLLIDE_CPP_INCLUDE_DIR}>
+        $<BUILD_INTERFACE:${LIB_INCLUDE_DIR}>
 )
 target_link_libraries(ncollide_test
     PRIVATE
@@ -132,7 +137,7 @@ install(TARGETS ${NCOLLIDE_CPP_LIB}
 )
 
 # Install the headers
-install(DIRECTORY ${NCOLLIDE_CPP_INCLUDE_DIR} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY ${LIB_INCLUDE_DIR} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # Export targets to Targets.cmake
 install(EXPORT ${NCOLLIDE_CPP_TARGETS}
@@ -149,7 +154,7 @@ write_basic_package_version_file(${CMAKE_BINARY_DIR}/${NCOLLIDE_CPP_CONFIG}Versi
 )
 
 # Create Config.cmake
-configure_package_config_file(${NCOLLIDE_CPP_CMAKE_DIR}/${NCOLLIDE_CPP_CONFIG}.cmake.in
+configure_package_config_file(${LIB_CMAKE_DIR}/${NCOLLIDE_CPP_CONFIG}.cmake.in
     ${CMAKE_BINARY_DIR}/${NCOLLIDE_CPP_CONFIG}.cmake
     INSTALL_DESTINATION ${NCOLLIDE_CPP_CONFIG_INSTALL_DIR})
 
