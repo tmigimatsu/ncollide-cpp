@@ -1,6 +1,15 @@
+# [package]
+# name = "ncollide-cpp"
+# version = "0.23.0"
+
 [workspace]
 members = ["ncollide2d-cpp", "ncollide3d-cpp"]
 
-[patch.crates-io]
-ncollide2d = { path = "external/ncollide.git/build/ncollide2d" }
-ncollide3d = { path = "external/ncollide.git/build/ncollide3d" }
+# [dependencies]
+# ncollide2d = "0.23"
+# ncollide3d = "0.23"
+# nalgebra = "0.21"
+
+# [patch.crates-io]
+# ncollide2d = { path = "external/ncollide.git/build/ncollide2d" }
+# ncollide3d = { path = "external/ncollide.git/build/ncollide3d" }

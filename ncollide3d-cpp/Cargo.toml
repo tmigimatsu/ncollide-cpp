@@ -5,9 +5,9 @@ authors = ["Toki Migimatsu <toki.migimatsu@gmail.com>"]
 edition = "2018"
 
 [dependencies]
-nalgebra = "0.17"
-ncollide3d = "0.18.4"
-ncollide2d = "0.18.4"
+nalgebra = "*"
+ncollide3d = "0.23"
+ncollide2d = "0.23"
 
 [features]
 default = ["dim3"]

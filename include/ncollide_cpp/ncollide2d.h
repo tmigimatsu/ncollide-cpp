@@ -176,6 +176,33 @@ struct Contact {
 
 };
 
+struct TOI {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  enum class Status {
+    OutOfIterations,
+    Converged,
+    Failed,
+    Penetrating
+  };
+
+  TOI() = default;
+  TOI(double toi, Eigen::Ref<const Eigen::Vector2d> witness1,
+      Eigen::Ref<const Eigen::Vector2d> witness2,
+      Eigen::Ref<const Eigen::Vector2d> normal1,
+      Eigen::Ref<const Eigen::Vector2d> normal2,
+      Status status)
+      : toi(toi), witness1(witness1), witness2(witness2), normal1(normal1),
+        normal2(normal2), status(status) {}
+
+  double toi;
+  Eigen::Vector2d witness1;
+  Eigen::Vector2d witness2;
+  Eigen::Vector2d normal1;
+  Eigen::Vector2d normal2;
+  Status status;
+};
+
 enum class Proximity {
   Intersecting,
   WithinMargin,
@@ -223,10 +250,11 @@ Proximity proximity(const Eigen::Isometry2d& m1, const shape::Shape& g1,
  *
  * Returns 0.0 if the objects are touching or penetrating.
  */
-std::optional<double> time_of_impact(const Eigen::Isometry2d& m1, const Eigen::Vector2d& v1,
-                                     const shape::Shape& g1,
-                                     const Eigen::Isometry2d& m2, const Eigen::Vector2d& v2,
-                                     const shape::Shape& g2);
+std::optional<TOI> time_of_impact(const Eigen::Isometry2d& m1, const Eigen::Vector2d& v1,
+                                  const shape::Shape& g1,
+                                  const Eigen::Isometry2d& m2, const Eigen::Vector2d& v2,
+                                  const shape::Shape& g2,
+                                  double max_toi, double target_distance);
 
 }  // namespace query
 
@@ -266,13 +294,14 @@ class Shape {
    * Computes the time of impact between this transformed shape and a ray.
    */
   std::optional<double> toi_with_ray(const Eigen::Isometry2d& m, const query::Ray& ray,
-                                     bool solid) const;
+                                     double max_toi, bool solid) const;
 
   /**
    * Computes the time of impact and normal between this transformed shape and a ray.
    */
   std::optional<query::RayIntersection> toi_and_normal_with_ray(const Eigen::Isometry2d& m,
                                                                 const query::Ray& ray,
+                                                                double max_toi,
                                                                 bool solid) const;
 
  private:

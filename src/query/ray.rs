@@ -43,6 +43,7 @@ pub fn ray_dir(ray: Option<&nc::query::Ray<f64>>) -> *const f64 {
 pub fn toi_with_ray(shape: Option<&nc::shape::ShapeHandle<f64>>,
                     m: Option<&math::CIsometry>,
                     ray: Option<&nc::query::Ray<f64>>,
+                    max_toi: f64,
                     solid: bool,
                     out_toi: Option<&mut f64>) -> bool {
     use nc::query::RayCast;
@@ -51,7 +52,7 @@ pub fn toi_with_ray(shape: Option<&nc::shape::ShapeHandle<f64>>,
     let m = math::isometry_from_raw(m.unwrap());
     let ray = ray.unwrap();
 
-    let toi = shape.toi_with_ray(&m, &ray, solid);
+    let toi = shape.toi_with_ray(&m, &ray, max_toi, solid);
     match toi {
         Some(toi) => {
             match out_toi {
@@ -67,6 +68,7 @@ pub fn toi_with_ray(shape: Option<&nc::shape::ShapeHandle<f64>>,
 pub fn toi_and_normal_with_ray(shape: Option<&nc::shape::ShapeHandle<f64>>,
                                m: Option<&math::CIsometry>,
                                ray: Option<&nc::query::Ray<f64>>,
+                               max_toi: f64,
                                solid: bool,
                                out_intersect: Option<&mut CRayIntersection>) -> bool {
     use nc::query::RayCast;
@@ -75,7 +77,7 @@ pub fn toi_and_normal_with_ray(shape: Option<&nc::shape::ShapeHandle<f64>>,
     let m = math::isometry_from_raw(m.unwrap());
     let ray = ray.unwrap();
 
-    let intersect = shape.toi_and_normal_with_ray(&m, &ray, solid);
+    let intersect = shape.toi_and_normal_with_ray(&m, &ray, max_toi, solid);
     match intersect {
         Some(intersect) => {
             match out_intersect {

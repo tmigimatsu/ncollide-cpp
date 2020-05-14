@@ -14,12 +14,12 @@ use crate::nc;
 /// SupportMap description of a rounded cuboid shape.
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(PartialEq, Debug, Clone)]
-pub struct RoundedCuboid<N: na::Real> {
+pub struct RoundedCuboid<N: na::RealField> {
     half_extents: nc::math::Vector<N>,
     radius: N,
 }
 
-impl<N: na::Real> RoundedCuboid<N> {
+impl<N: na::RealField> RoundedCuboid<N> {
     /// Creates a new rounded cuboid.
     ///
     /// # Arguments:
@@ -49,11 +49,11 @@ impl<N: na::Real> RoundedCuboid<N> {
         self.radius
     }
 
-    /// The cuboid that, once dilated by `self.radius` yields this rounded cuboid.
-    #[inline]
-    pub fn cuboid(&self) -> nc::shape::Cuboid<N> {
-        nc::shape::Cuboid::new(*self.half_extents())
-    }
+    // /// The cuboid that, once dilated by `self.radius` yields this rounded cuboid.
+    // #[inline]
+    // pub fn cuboid(&self) -> nc::shape::Cuboid<N> {
+    //     nc::shape::Cuboid::new(*self.half_extents())
+    // }
 
     // /// The contact preprocessor to be used for contact determination with this rounded cuboid.
     // #[inline]
@@ -64,7 +64,7 @@ impl<N: na::Real> RoundedCuboid<N> {
     // }
 }
 
-impl<N: na::Real> nc::shape::SupportMap<N> for RoundedCuboid<N> {
+impl<N: na::RealField> nc::shape::SupportMap<N> for RoundedCuboid<N> {
     #[inline]
     fn support_point(&self, m: &nc::math::Isometry<N>, dir: &nc::math::Vector<N>) -> nc::math::Point<N> {
         self.support_point_toward(m, &na::Unit::new_normalize(*dir))
@@ -72,8 +72,6 @@ impl<N: na::Real> nc::shape::SupportMap<N> for RoundedCuboid<N> {
 
     #[inline]
     fn support_point_toward(&self, m: &nc::math::Isometry<N>, dir: &na::Unit<nc::math::Vector<N>>) -> nc::math::Point<N> {
-        use nc::utils::IsometryOps;
-
         let local_dir = m.inverse_transform_vector(dir);
 
         let mut res = *self.half_extents();
@@ -88,7 +86,7 @@ impl<N: na::Real> nc::shape::SupportMap<N> for RoundedCuboid<N> {
     }
 }
 
-impl<N: na::Real> nc::bounding_volume::HasBoundingVolume<N, nc::bounding_volume::AABB<N>>
+impl<N: na::RealField> nc::bounding_volume::HasBoundingVolume<N, nc::bounding_volume::AABB<N>>
 for RoundedCuboid<N> {
     #[inline]
     fn bounding_volume(&self, m: &nc::math::Isometry<N>) -> nc::bounding_volume::AABB<N> {
@@ -100,7 +98,7 @@ for RoundedCuboid<N> {
     }
 }
 
-impl<N: na::Real> nc::bounding_volume::HasBoundingVolume<N, nc::bounding_volume::BoundingSphere<N>>
+impl<N: na::RealField> nc::bounding_volume::HasBoundingVolume<N, nc::bounding_volume::BoundingSphere<N>>
 for RoundedCuboid<N> {
     #[inline]
     fn bounding_volume(&self, m: &nc::math::Isometry<N>)
@@ -112,7 +110,7 @@ for RoundedCuboid<N> {
     }
 }
 
-impl<N: na::Real> nc::query::PointQuery<N> for RoundedCuboid<N> {
+impl<N: na::RealField> nc::query::PointQuery<N> for RoundedCuboid<N> {
     #[inline]
     fn project_point(&self, m: &nc::math::Isometry<N>, pt: &nc::math::Point<N>, solid: bool)
             -> nc::query::PointProjection<N> {
@@ -150,12 +148,12 @@ impl<N: na::Real> nc::query::PointQuery<N> for RoundedCuboid<N> {
     }
 }
 
-impl<N: na::Real> nc::query::RayCast<N> for RoundedCuboid<N> {
-    fn toi_with_ray(&self, m: &nc::math::Isometry<N>, ray: &nc::query::Ray<N>, solid: bool) -> Option<N> {
+impl<N: na::RealField> nc::query::RayCast<N> for RoundedCuboid<N> {
+    fn toi_with_ray(&self, m: &nc::math::Isometry<N>, ray: &nc::query::Ray<N>, max_toi: N, solid: bool) -> Option<N> {
         let ls_ray = ray.inverse_transform_by(m);
 
         // Ray cast with bounding box first
-        let res_bb = toi_with_bb(self.half_extents(), self.radius(), &ls_ray, solid);
+        let res_bb = toi_with_bb(self.half_extents(), self.radius(), &ls_ray, max_toi, solid);
         if res_bb.is_none() {
             return None
         }
@@ -195,6 +193,7 @@ impl<N: na::Real> nc::query::RayCast<N> for RoundedCuboid<N> {
     fn toi_and_normal_with_ray(&self,
                                m: &nc::math::Isometry<N>,
                                ray: &nc::query::Ray<N>,
+                               max_toi: N,
                                solid: bool) -> Option<nc::query::RayIntersection<N>> {
         // use nc::query::ray_internal::implicit_toi_and_normal_with_ray;
 
@@ -208,7 +207,7 @@ impl<N: na::Real> nc::query::RayCast<N> for RoundedCuboid<N> {
         // return res;
 
         // Ray cast with bounding box first
-        let res_bb = toi_with_bb(self.half_extents(), self.radius(), &ls_ray, solid);
+        let res_bb = toi_with_bb(self.half_extents(), self.radius(), &ls_ray, max_toi, solid);
         if res_bb.is_none() {
             return None
         }
@@ -268,9 +267,10 @@ impl<N: na::Real> nc::query::RayCast<N> for RoundedCuboid<N> {
     }
 }
 
-fn toi_with_bb<N: na::Real>(half_extents: &nc::math::Vector<N>,
+fn toi_with_bb<N: na::RealField>(half_extents: &nc::math::Vector<N>,
                             radius: N,
                             ls_ray: &nc::query::Ray<N>,
+                            max_toi: N,
                             solid: bool)
         -> Option<(N, nc::math::Point<N>, [usize; nc::math::DIM])> {
     use nc::query::RayCast;
@@ -279,7 +279,7 @@ fn toi_with_bb<N: na::Real>(half_extents: &nc::math::Vector<N>,
     let dl = nc::math::Point::from(half_extents.map(|x| -x - radius));
     let dr = nc::math::Point::from(half_extents.map(|x| x + radius));
     let toi_bb = nc::bounding_volume::AABB::new(dl, dr)
-        .toi_with_ray(&nc::math::Isometry::identity(), &ls_ray, solid);
+        .toi_with_ray(&nc::math::Isometry::identity(), &ls_ray, max_toi, solid);
     if toi_bb.is_none() {
         return None
     }
@@ -297,7 +297,7 @@ fn toi_with_bb<N: na::Real>(half_extents: &nc::math::Vector<N>,
     Some((toi_bb, point_bb, dir))
 }
 
-fn toi_and_normal_with_rounded_corner<N: na::Real>(half_extents: &nc::math::Vector<N>,
+fn toi_and_normal_with_rounded_corner<N: na::RealField>(half_extents: &nc::math::Vector<N>,
                                                    radius: N,
                                                    ls_ray: &nc::query::Ray<N>,
                                                    solid: bool,
@@ -350,7 +350,7 @@ fn toi_and_normal_with_rounded_corner<N: na::Real>(half_extents: &nc::math::Vect
     None
 }
 
-fn toi_and_normal_with_rounded_edge<N: na::Real>(half_extents: &nc::math::Vector<N>,
+fn toi_and_normal_with_rounded_edge<N: na::RealField>(half_extents: &nc::math::Vector<N>,
                                                  radius: N,
                                                  ls_ray: &nc::query::Ray<N>,
                                                  solid: bool,
@@ -416,7 +416,7 @@ fn toi_and_normal_with_rounded_edge<N: na::Real>(half_extents: &nc::math::Vector
     None
 }
 
-impl<N: na::Real> nc::shape::Shape<N> for RoundedCuboid<N> {
+impl<N: na::RealField> nc::shape::Shape<N> for RoundedCuboid<N> {
 
     #[inline]
     fn aabb(&self, m: &nc::math::Isometry<N>) -> nc::bounding_volume::AABB<N> {
@@ -429,17 +429,17 @@ impl<N: na::Real> nc::shape::Shape<N> for RoundedCuboid<N> {
     }
 
     #[inline]
-    fn as_ray_cast(&self) -> Option<&nc::query::RayCast<N>> {
+    fn as_ray_cast(&self) -> Option<&dyn nc::query::RayCast<N>> {
         Some(self)
     }
 
     #[inline]
-    fn as_point_query(&self) -> Option<&nc::query::PointQuery<N>> {
+    fn as_point_query(&self) -> Option<&dyn nc::query::PointQuery<N>> {
         Some(self)
     }
 
     #[inline]
-    fn as_support_map(&self) -> Option<&nc::shape::SupportMap<N>> {
+    fn as_support_map(&self) -> Option<&dyn nc::shape::SupportMap<N>> {
         Some(self)
     }
 

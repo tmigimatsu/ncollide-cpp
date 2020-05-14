@@ -54,11 +54,11 @@ impl std::fmt::Display for ParseVectorError {
 }
 impl std::error::Error for ParseVectorError {
     fn description(&self) -> &str { "invalid vector string" }
-    fn cause(&self) -> Option<&std::error::Error> { None }
+    fn cause(&self) -> Option<&dyn std::error::Error> { None }
 }
 
 fn parse_obj_vertex(mut tokens: std::str::SplitWhitespace)
-        -> Result<nc::math::Point<f64>, Box<std::error::Error>> {
+        -> Result<nc::math::Point<f64>, Box<dyn std::error::Error>> {
     let mut v = unsafe { nc::math::Point::<f64>::new_uninitialized() };
     for i in 0..3 {
         let token = tokens.next().ok_or(ParseVectorError)?;
@@ -68,7 +68,7 @@ fn parse_obj_vertex(mut tokens: std::str::SplitWhitespace)
 }
 
 fn parse_obj_face(mut tokens: std::str::SplitWhitespace)
-        -> Result<na::geometry::Point3<usize>, Box<std::error::Error>> {
+        -> Result<na::geometry::Point3<usize>, Box<dyn std::error::Error>> {
     let mut f = unsafe { na::geometry::Point3::<usize>::new_uninitialized() };
     for i in 0..3 {
         let token = tokens.next().ok_or(ParseVectorError)?;

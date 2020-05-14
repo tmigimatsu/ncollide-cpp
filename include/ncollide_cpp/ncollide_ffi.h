@@ -100,6 +100,30 @@ enum ncollide3d_query_proximity_t {
   ncollide3d_query_proximity_Disjoint
 };
 
+enum ncollide_query_toi_status_t {
+  ncollide_query_toi_OutOfIterations,
+  ncollide_query_toi_Converged,
+  ncollide_query_toi_Failed,
+  ncollide_query_toi_Penetrating
+};
+
+struct ncollide2d_query_toi_t {
+  double toi;
+  double witness1[2];
+  double witness2[2];
+  double normal1[2];
+  double normal2[2];
+  ncollide_query_toi_status_t status;
+};
+struct ncollide3d_query_toi_t {
+  double toi;
+  double witness1[3];
+  double witness2[3];
+  double normal1[3];
+  double normal2[3];
+  ncollide_query_toi_status_t status;
+};
+
 /**
  * Shape
  */
@@ -187,20 +211,24 @@ const double* ncollide3d_query_ray_dir(const ncollide3d_query_ray_t* ray);
 
 bool ncollide2d_query_toi_with_ray(const ncollide2d_shape_t* shape,
                                    const ncollide2d_math_isometry_t* m,
-                                   const ncollide2d_query_ray_t* ray, bool solid,
+                                   const ncollide2d_query_ray_t* ray,
+                                   double max_toi, bool solid,
                                    double* out_toi);
 bool ncollide3d_query_toi_with_ray(const ncollide3d_shape_t* shape,
                                    const ncollide3d_math_isometry_t* m,
-                                   const ncollide3d_query_ray_t* ray, bool solid,
+                                   const ncollide3d_query_ray_t* ray,
+                                  double max_toi, bool solid,
                                    double* out_toi);
 
 bool ncollide2d_query_toi_and_normal_with_ray(const ncollide2d_shape_t* shape,
                                               const ncollide2d_math_isometry_t* m,
-                                              const ncollide2d_query_ray_t* ray, bool solid,
+                                              const ncollide2d_query_ray_t* ray,
+                                              double max_toi, bool solid,
                                               ncollide2d_query_ray_intersection_t* out_intersect);
 bool ncollide3d_query_toi_and_normal_with_ray(const ncollide3d_shape_t* shape,
                                               const ncollide3d_math_isometry_t* m,
-                                              const ncollide3d_query_ray_t* ray, bool solid,
+                                              const ncollide3d_query_ray_t* ray,
+                                              double max_toi, bool solid,
                                               ncollide3d_query_ray_intersection_t* out_intersect);
 
 /**
@@ -242,11 +270,15 @@ ncollide3d_query_proximity_t ncollide3d_query_proximity(const ncollide3d_math_is
 bool ncollide2d_query_time_of_impact(const ncollide2d_math_isometry_t* m1, const double v1[2],
                                      const ncollide2d_shape_t* g1,
                                      const ncollide2d_math_isometry_t* m2, const double v2[2],
-                                     const ncollide2d_shape_t* g2, double* out_time);
+                                     const ncollide2d_shape_t* g2, double max_toi,
+                                     double target_distance,
+                                     ncollide2d_query_toi_t* out_toi);
 bool ncollide3d_query_time_of_impact(const ncollide3d_math_isometry_t* m1, const double v1[3],
                                      const ncollide3d_shape_t* g1,
                                      const ncollide3d_math_isometry_t* m2, const double v2[3],
-                                     const ncollide3d_shape_t* g2, double* out_time);
+                                     const ncollide3d_shape_t* g2, double max_toi,
+                                     double target_distance,
+                                     ncollide3d_query_toi_t* out_toi);
 
 /**
  * Ball

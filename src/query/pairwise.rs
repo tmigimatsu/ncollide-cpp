@@ -14,7 +14,7 @@ use crate::math;
 pub enum CClosestPoints {
     Intersecting,
     WithinMargin,
-    Disjoint
+    Disjoint,
 }
 
 #[repr(C)]
@@ -22,14 +22,32 @@ pub struct CContact {
     pub world1: [f64; nc::math::DIM],
     pub world2: [f64; nc::math::DIM],
     pub normal: [f64; nc::math::DIM],
-    pub depth: f64
+    pub depth: f64,
 }
 
 #[repr(C)]
 pub enum CProximity {
     Intersecting,
     WithinMargin,
-    Disjoint
+    Disjoint,
+}
+
+#[repr(C)]
+pub enum CTOIStatus {
+    OutOfIterations,
+    Converged,
+    Failed,
+    Penetrating,
+}
+
+#[repr(C)]
+pub struct CTOI {
+    pub toi: f64,
+    pub witness1: [f64; nc::math::DIM],
+    pub witness2: [f64; nc::math::DIM],
+    pub normal1: [f64; nc::math::DIM],
+    pub normal2: [f64; nc::math::DIM],
+    pub status: CTOIStatus,
 }
 
 pub fn closest_points(m1: Option<&math::CIsometry>,
@@ -124,13 +142,14 @@ pub fn proximity(m1: Option<&math::CIsometry>,
     }
 }
 
-pub extern fn time_of_impact(m1: Option<&math::CIsometry>,
-                             v1: Option<&[f64; nc::math::DIM]>,
-                             g1: Option<&nc::shape::ShapeHandle<f64>>,
-                             m2: Option<&math::CIsometry>,
-                             v2: Option<&[f64; nc::math::DIM]>,
-                             g2: Option<&nc::shape::ShapeHandle<f64>>,
-                             out_time: Option<&mut f64>) -> bool {
+pub fn time_of_impact(m1: Option<&math::CIsometry>,
+                      v1: Option<&[f64; nc::math::DIM]>,
+                      g1: Option<&nc::shape::ShapeHandle<f64>>,
+                      m2: Option<&math::CIsometry>,
+                      v2: Option<&[f64; nc::math::DIM]>,
+                      g2: Option<&nc::shape::ShapeHandle<f64>>,
+                      max_toi: f64, target_distance: f64,
+                      out_toi: Option<&mut CTOI>) -> bool {
     let m1 = math::isometry_from_raw(m1.unwrap());
     let m2 = math::isometry_from_raw(m2.unwrap());
     let v1 = nc::math::Vector::from_column_slice(v1.unwrap());
@@ -138,11 +157,23 @@ pub extern fn time_of_impact(m1: Option<&math::CIsometry>,
     let g1 = g1.unwrap().as_ref();
     let g2 = g2.unwrap().as_ref();
 
-    let result = nc::query::time_of_impact(&m1, &v1, g1, &m2, &v2, g2);
+    let result = nc::query::time_of_impact(&m1, &v1, g1, &m2, &v2, g2, max_toi, target_distance);
     match result {
-        Some(time) => {
-            match out_time {
-                Some(out_time) => { *out_time = time; },
+        Some(ref toi) => {
+            match out_toi {
+                Some(out_toi) => {
+                    out_toi.toi = toi.toi;
+                    out_toi.witness1.copy_from_slice(toi.witness1.coords.data.as_slice());
+                    out_toi.witness2.copy_from_slice(toi.witness2.coords.data.as_slice());
+                    out_toi.normal1.copy_from_slice(toi.normal1.data.as_slice());
+                    out_toi.normal2.copy_from_slice(toi.normal2.data.as_slice());
+                    out_toi.status = match toi.status {
+                        nc::query::TOIStatus::OutOfIterations => CTOIStatus::OutOfIterations,
+                        nc::query::TOIStatus::Converged => CTOIStatus::Converged,
+                        nc::query::TOIStatus::Failed => CTOIStatus::Failed,
+                        nc::query::TOIStatus::Penetrating => CTOIStatus::Penetrating,
+                    }
+                },
                 None => {}
             };
             true

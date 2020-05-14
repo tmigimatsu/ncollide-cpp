@@ -67,18 +67,20 @@ extern fn ncollide2d_query_ray_dir(ray: Option<&nc::query::Ray<f64>>) -> *const 
 extern fn ncollide2d_query_toi_with_ray(shape: Option<&nc::shape::ShapeHandle<f64>>,
                                         m: Option<&math::CIsometry>,
                                         ray: Option<&nc::query::Ray<f64>>,
+                                        max_toi: f64,
                                         solid: bool,
                                         out_toi: Option<&mut f64>) -> bool {
-    ray::toi_with_ray(shape, m, ray, solid, out_toi)
+    ray::toi_with_ray(shape, m, ray, max_toi, solid, out_toi)
 }
 
 #[no_mangle]
 extern fn ncollide2d_query_toi_and_normal_with_ray(shape: Option<&nc::shape::ShapeHandle<f64>>,
                                                    m: Option<&math::CIsometry>,
                                                    ray: Option<&nc::query::Ray<f64>>,
+                                                   max_toi: f64,
                                                    solid: bool,
                                                    out_intersect: Option<&mut ray::CRayIntersection>) -> bool {
-    ray::toi_and_normal_with_ray(shape, m, ray, solid, out_intersect)
+    ray::toi_and_normal_with_ray(shape, m, ray, max_toi, solid, out_intersect)
 }
 
 /**
@@ -130,6 +132,8 @@ extern fn ncollide2d_query_time_of_impact(m1: Option<&math::CIsometry>,
                                           m2: Option<&math::CIsometry>,
                                           v2: Option<&[f64; nc::math::DIM]>,
                                           g2: Option<&nc::shape::ShapeHandle<f64>>,
-                                          out_time: Option<&mut f64>) -> bool {
-    pairwise::time_of_impact(m1, v1, g1, m2, v2, g2, out_time)
+                                          max_toi: f64,
+                                          target_distance: f64,
+                                          out_toi: Option<&mut pairwise::CTOI>) -> bool {
+    pairwise::time_of_impact(m1, v1, g1, m2, v2, g2, max_toi, target_distance, out_toi)
 }

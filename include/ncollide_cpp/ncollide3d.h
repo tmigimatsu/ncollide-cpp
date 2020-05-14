@@ -168,6 +168,7 @@ struct ClosestPoints {
 };
 
 struct Contact {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
   Contact() = default;
   Contact(Eigen::Ref<const Eigen::Vector3d> world1, Eigen::Ref<const Eigen::Vector3d> world2,
@@ -179,6 +180,33 @@ struct Contact {
   Eigen::Vector3d normal;
   double depth;
 
+};
+
+struct TOI {
+  EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+  enum class Status {
+    OutOfIterations,
+    Converged,
+    Failed,
+    Penetrating
+  };
+
+  TOI() = default;
+  TOI(double toi, Eigen::Ref<const Eigen::Vector3d> witness1,
+      Eigen::Ref<const Eigen::Vector3d> witness2,
+      Eigen::Ref<const Eigen::Vector3d> normal1,
+      Eigen::Ref<const Eigen::Vector3d> normal2,
+      Status status)
+      : toi(toi), witness1(witness1), witness2(witness2), normal1(normal1),
+        normal2(normal2), status(status) {}
+
+  double toi;
+  Eigen::Vector3d witness1;
+  Eigen::Vector3d witness2;
+  Eigen::Vector3d normal1;
+  Eigen::Vector3d normal2;
+  Status status;
 };
 
 enum class Proximity {
@@ -228,10 +256,11 @@ Proximity proximity(const Eigen::Isometry3d& m1, const shape::Shape& g1,
  *
  * Returns 0.0 if the objects are touching or penetrating.
  */
-std::optional<double> time_of_impact(const Eigen::Isometry3d& m1, const Eigen::Vector3d& v1,
-                                     const shape::Shape& g1,
-                                     const Eigen::Isometry3d& m2, const Eigen::Vector3d& v2,
-                                     const shape::Shape& g2);
+std::optional<TOI> time_of_impact(const Eigen::Isometry3d& m1, const Eigen::Vector3d& v1,
+                                  const shape::Shape& g1,
+                                  const Eigen::Isometry3d& m2, const Eigen::Vector3d& v2,
+                                  const shape::Shape& g2, double max_toi,
+                                  double target_distance);
 
 }  // query
 
@@ -280,7 +309,7 @@ class Shape {
    * Computes the time of impact between this transformed shape and a ray.
    */
   std::optional<double> toi_with_ray(const Eigen::Isometry3d& m, const query::Ray& ray,
-                                     bool solid) const;
+                                     double max_toi, bool solid) const;
 
   /**
    * Computes the time of impact and normal between this transformed shape and a ray.
@@ -289,6 +318,7 @@ class Shape {
    */
   std::optional<query::RayIntersection> toi_and_normal_with_ray(const Eigen::Isometry3d& m,
                                                                 const query::Ray& ray,
+                                                                double max_toi,
                                                                 bool solid) const;
 
   // TODO: Make not unique_ptr?

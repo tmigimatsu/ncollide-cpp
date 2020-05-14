@@ -29,6 +29,20 @@ Eigen::Isometry2d Isometry3dto2d(const Eigen::Isometry3d& T) {
   return Eigen::Translation2d(T.translation().head<2>()) * Eigen::Rotation2Dd(aa.angle());
 }
 
+ncollide3d::query::TOI::Status ConvertTOIStatus(ncollide_query_toi_status_t status) {
+  switch (status) {
+    case ncollide_query_toi_OutOfIterations:
+      return ncollide3d::query::TOI::Status::OutOfIterations;
+    case ncollide_query_toi_Converged:
+      return ncollide3d::query::TOI::Status::Converged;
+    case ncollide_query_toi_Failed:
+      return ncollide3d::query::TOI::Status::Failed;
+    case ncollide_query_toi_Penetrating:
+      return ncollide3d::query::TOI::Status::Penetrating;
+  }
+  throw std::invalid_argument("ConvertTOIStatus(): Invalid status.");
+}
+
 }  // namespace
 
 namespace ncollide3d {
@@ -153,22 +167,29 @@ Proximity proximity(const Eigen::Isometry3d& m1, const shape::Shape& g1,
   }
 }
 
-std::optional<double> time_of_impact(const Eigen::Isometry3d& m1, const Eigen::Vector3d& v1,
-                                     const shape::Shape& g1,
-                                     const Eigen::Isometry3d& m2, const Eigen::Vector3d& v2,
-                                     const shape::Shape& g2) {
+std::optional<TOI> time_of_impact(const Eigen::Isometry3d& m1, const Eigen::Vector3d& v1,
+                                  const shape::Shape& g1,
+                                  const Eigen::Isometry3d& m2, const Eigen::Vector3d& v2,
+                                  const shape::Shape& g2, double max_toi,
+                                  double target_distance) {
   ncollide3d_math_isometry_t c_m1 = ConvertIsometry(m1);
   ncollide3d_math_isometry_t c_m2 = ConvertIsometry(m2);
 
-  double out_time = 0.;
+  ncollide3d_query_toi_t out_toi;
   bool result = ncollide3d_query_time_of_impact(&c_m1, v1.data(), g1.ptr(),
-                                                &c_m2, v2.data(), g2.ptr(), &out_time);
+                                                &c_m2, v2.data(), g2.ptr(),
+                                                max_toi, target_distance, &out_toi);
 
-  std::optional<double> time;
+  std::optional<TOI> toi;
   if (result) {
-    time = out_time;
+    toi.emplace(out_toi.toi,
+        Eigen::Ref<const Eigen::Vector3d>(Eigen::Map<Eigen::Vector3d>(out_toi.witness1)),
+        Eigen::Ref<const Eigen::Vector3d>(Eigen::Map<Eigen::Vector3d>(out_toi.witness2)),
+        Eigen::Ref<const Eigen::Vector3d>(Eigen::Map<Eigen::Vector3d>(out_toi.normal1)),
+        Eigen::Ref<const Eigen::Vector3d>(Eigen::Map<Eigen::Vector3d>(out_toi.normal2)),
+        ConvertTOIStatus(out_toi.status));
   }
-  return time;
+  return toi;
 }
 
 }  // namespace query
@@ -214,10 +235,10 @@ bool Shape::contains_point(const Eigen::Isometry3d& m, const Eigen::Vector3d& pt
 }
 
 std::optional<double> Shape::toi_with_ray(const Eigen::Isometry3d& m, const query::Ray& ray,
-                                          bool solid) const {
+                                          double max_toi, bool solid) const {
   ncollide3d_math_isometry_t c_m = ConvertIsometry(m);
   double out_toi;
-  bool result = ncollide3d_query_toi_with_ray(ptr(), &c_m, ray.ptr(), solid, &out_toi);
+  bool result = ncollide3d_query_toi_with_ray(ptr(), &c_m, ray.ptr(), max_toi, solid, &out_toi);
   std::optional<double> toi;
   if (result) toi = out_toi;
   return toi;
@@ -225,10 +246,11 @@ std::optional<double> Shape::toi_with_ray(const Eigen::Isometry3d& m, const quer
 
 std::optional<query::RayIntersection> Shape::toi_and_normal_with_ray(const Eigen::Isometry3d& m,
                                                                      const query::Ray& ray,
+                                                                     double max_toi,
                                                                      bool solid) const {
   ncollide3d_math_isometry_t c_m = ConvertIsometry(m);
   ncollide3d_query_ray_intersection_t out_ray;
-  bool result = ncollide3d_query_toi_and_normal_with_ray(ptr(), &c_m, ray.ptr(), solid, &out_ray);
+  bool result = ncollide3d_query_toi_and_normal_with_ray(ptr(), &c_m, ray.ptr(), max_toi, solid, &out_ray);
   std::optional<query::RayIntersection> intersect;
   if (result) {
     Eigen::Map<const Eigen::Vector3d> normal(out_ray.normal);

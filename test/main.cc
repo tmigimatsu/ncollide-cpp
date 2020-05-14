@@ -31,8 +31,8 @@ int main(int argc, char *argv[]) {
   const auto ProjectFrom = [&shape, &file](const Eigen::Vector3d& xyz) {
     const ncollide3d::query::Ray ray_outer(xyz, -xyz.normalized());
     const ncollide3d::query::Ray ray_inner(Eigen::Vector3d::Zero(), xyz.normalized());
-    auto intersect_outer = shape.toi_and_normal_with_ray(Eigen::Isometry3d::Identity(), ray_outer, false);
-    auto intersect_inner = shape.toi_and_normal_with_ray(Eigen::Isometry3d::Identity(), ray_inner, false);
+    auto intersect_outer = shape.toi_and_normal_with_ray(Eigen::Isometry3d::Identity(), ray_outer, 100, false);
+    auto intersect_inner = shape.toi_and_normal_with_ray(Eigen::Isometry3d::Identity(), ray_inner, 100, false);
 
     const Eigen::Vector3d point_outer = ray_outer.origin() + intersect_outer->toi * ray_outer.dir();
     const Eigen::Vector3d point_inner = ray_inner.origin() + intersect_inner->toi * ray_inner.dir();
