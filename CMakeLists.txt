@@ -51,10 +51,10 @@ function(download_package PACKAGE_NAME)
         WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/${PACKAGE_NAME})
 endfunction()
 
-find_package(ctrl_utils 1.1.0 QUIET)
+find_package(ctrl_utils 1.2.0 QUIET)
 if(NOT ctrl_utils_FOUND)
     download_package(ctrl_utils)
-    find_package(ctrl_utils 1.1.0 REQUIRED)
+    find_package(ctrl_utils 1.2.0 REQUIRED)
 endif()
 
 
