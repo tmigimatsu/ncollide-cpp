@@ -45,7 +45,8 @@ target_compile_options(${NCOLLIDE_CPP_LIB} PRIVATE
 # Download dependencies
 include(${LIB_CMAKE_DIR}/include_package.cmake)
 add_subdirectory(${LIB_EXTERNAL_DIR}/ctrl_utils)
-add_subdirectory(${ctrl_utils_EXTERNAL_DIR}/Eigen3)
+ctrl_utils_add_subdirectory(Eigen3)
+init_git_submodule(${LIB_EXTERNAL_DIR}/ncollide.git)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CARGO_CMD cargo build)
