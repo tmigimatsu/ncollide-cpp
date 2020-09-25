@@ -11,10 +11,10 @@
 cmake_minimum_required(VERSION 3.6)
 
 # Define project
-project(ncollide_cpp VERSION 0.1.0 LANGUAGES CXX)
+project(ncollide_cpp VERSION 0.1.1 LANGUAGES CXX)
 
 # Set CMake flags
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_VERBOSE_MAKEFILE ON) # TODO: Remove
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 if (NOT CMAKE_BUILD_TYPE OR CMAKE_BUILD_TYPE STREQUAL "")
@@ -42,28 +42,10 @@ target_compile_options(${NCOLLIDE_CPP_LIB} PRIVATE
     $<$<CONFIG:RELEASE>:-O3>
 )
 
-# Find dependencies
-function(download_package PACKAGE_NAME)
-    set(EXT_PACKAGE_VERSION ${ARGV1})
-    if(EXISTS ${LIB_CMAKE_DIR}/Find${PACKAGE_NAME}.cmake.in)
-        configure_file(${LIB_CMAKE_DIR}/Find${PACKAGE_NAME}.cmake.in
-            ${CMAKE_BINARY_DIR}/Find${PACKAGE_NAME}.cmake @ONLY)
-    endif()
-    configure_file(${LIB_CMAKE_DIR}/${PACKAGE_NAME}-CMakeLists.txt.in
-        ${CMAKE_BINARY_DIR}/${PACKAGE_NAME}/CMakeLists.txt @ONLY)
-    execute_process(COMMAND ${CMAKE_COMMAND} -G ${CMAKE_GENERATOR} .
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/${PACKAGE_NAME})
-    execute_process(COMMAND ${CMAKE_COMMAND} --build .
-        WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/${PACKAGE_NAME})
-endfunction()
-
-find_package(ctrl_utils 1.2.0 QUIET)
-if(NOT ctrl_utils_FOUND)
-    download_package(ctrl_utils 1.2.0)
-    find_package(ctrl_utils 1.2.0 REQUIRED)
-    list(APPEND NCOLLIDE_CPP_DEPENDENCIES "ctrl_utils ${ctrl_utils_VERSION} REQUIRED")
-endif()
-
+# Download dependencies
+include(${LIB_CMAKE_DIR}/include_package.cmake)
+add_subdirectory(${LIB_EXTERNAL_DIR}/ctrl_utils)
+add_subdirectory(${ctrl_utils_EXTERNAL_DIR}/Eigen3)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CARGO_CMD cargo build)
@@ -91,7 +73,9 @@ target_link_libraries(${NCOLLIDE_CPP_LIB}
     PUBLIC
         ${NCOLLIDE_DIR}/libncollide2d_cpp.a
         ${NCOLLIDE_DIR}/libncollide3d_cpp.a
-        ctrl_utils::ctrl_utils
+        Eigen3::Eigen
+    PRIVATE
+        pthread
         dl
 )
 add_dependencies(${NCOLLIDE_CPP_LIB} ncollide)

@@ -1,6 +1,5 @@
 bin
 build
-external
 target
 compile_commands.json
 *.so

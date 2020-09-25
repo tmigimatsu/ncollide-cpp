@@ -14,14 +14,9 @@
 
 #include <array>    // std::array
 #include <memory>   // std::shared_ptr, std::unique_ptr
+#include <optional>  // std::optional
 #include <utility>  // std::pair
 #include <vector>   // std::vector
-
-#if __cplusplus > 201402L
-#include <optional>  // std::optional
-#else
-#include <ctrl_utils/optional.h>
-#endif
 
 #include "ncollide2d.h"
 

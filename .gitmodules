@@ -1,3 +1,6 @@
 [submodule "external/ncollide.git"]
 	path = external/ncollide.git
 	url = https://github.com/tmigimatsu/ncollide.git
+[submodule "external/ctrl_utils/ctrl-utils.git"]
+	path = external/ctrl_utils/ctrl-utils.git
+	url = https://github.com/tmigimatsu/ctrl-utils.git
