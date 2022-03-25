@@ -3,6 +3,7 @@ build
 external
 target
 compile_commands.json
+.cache/
 *.so
 *.pyc
 *.egg-info
