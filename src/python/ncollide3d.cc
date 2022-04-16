@@ -43,8 +43,10 @@ PYBIND11_MODULE(ncollide3d, m) {
   // shape submodule
   py::module m_shape = m.def_submodule("shape");
   py::class_<shape::Shape>(m_shape, "Shape")
-      .def("aabb", &shape::Shape::aabb, "m"_a = Eigen::Isometry3d::Identity());
-
+      .def("aabb", &shape::Shape::aabb, "m"_a = Eigen::Isometry3d::Identity())
+      .def("project_point", &shape::Shape::project_point,
+           "m"_a,
+           "pt"_a , "solid"_a);
   py::class_<shape::Ball, shape::Shape>(m_shape, "Ball")
       .def(py::init<double>(), "radius"_a)
       .def_property_readonly("radius", &shape::Ball::radius)
@@ -68,6 +70,9 @@ PYBIND11_MODULE(ncollide3d, m) {
       .def("contact", &query::contact, "m1"_a, "g1"_a, "m2"_a, "g2"_a,
            "prediction"_a);
 
+  py::class_<query::PointProjection>(m_query, "PointProjection")
+    .def_readwrite("point", &query::PointProjection::point)
+    .def_readwrite("is_inside", &query::PointProjection::is_inside);
   py::add_ostream_redirect(m);
 }
 
