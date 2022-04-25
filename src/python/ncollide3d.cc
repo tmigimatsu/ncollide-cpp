@@ -57,7 +57,8 @@ PYBIND11_MODULE(ncollide3d, m) {
       .def("project_2d", &shape::TriMesh::project_2d)
       .def_property_readonly("num_points", &shape::TriMesh::num_points)
       .def("point", &shape::TriMesh::point, "i"_a);
-
+  py::class_<shape::Cuboid, shape::Shape>(m_shape, "Cuboid")
+      .def(py::init<double, double, double>(), "x"_a, "y"_a, "z"_a);
   // query submodule
   py::module m_query = m.def_submodule("query");
   py::class_<query::Contact>(m_query, "Contact")
